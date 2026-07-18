@@ -3,8 +3,10 @@ services:
     name: ecommerce-backend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm install && npx prisma generate && npm run build
-    startCommand: cd backend && npx prisma migrate deploy && node dist/server.js
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && node dist/server.js
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
@@ -21,43 +23,49 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
       - key: CORS_ORIGIN
-        sync: false
+        value: https://ecommerce-frontend.onrender.com
       - key: SITE_URL
-        sync: false
+        value: https://ecommerce-frontend.onrender.com
       - key: RAZORPAY_KEY_ID
-        sync: false
+        value: rzp_test_placeholder
       - key: RAZORPAY_KEY_SECRET
-        sync: false
+        value: placeholder
       - key: STRIPE_SECRET_KEY
-        sync: false
+        value: sk_test_placeholder
       - key: STRIPE_WEBHOOK_SECRET
-        sync: false
+        value: whsec_placeholder
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
-        value: 587
+        value: "587"
       - key: SMTP_USER
-        sync: false
+        value: placeholder@gmail.com
       - key: SMTP_PASS
-        sync: false
+        value: placeholder
       - key: EMAIL_FROM
-        sync: false
+        value: noreply@ecommerce.com
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX
+        value: "100"
 
   - type: web
     name: ecommerce-frontend
     runtime: node
     plan: free
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npm start
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        sync: false
+        value: https://ecommerce-backend.onrender.com/api/v1
       - key: NEXT_PUBLIC_SITE_URL
-        sync: false
+        value: https://ecommerce-frontend.onrender.com
       - key: NEXT_PUBLIC_RAZORPAY_KEY_ID
-        sync: false
+        value: rzp_test_placeholder
       - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-        sync: false
+        value: pk_test_placeholder
 
 databases:
   - name: ecommerce-db
