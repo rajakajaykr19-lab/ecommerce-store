@@ -11,7 +11,7 @@ export const seedDatabase = async (req: Request, res: Response, next: NextFuncti
 
     const results: string[] = [];
 
-    // Admin user
+    // Admin user (default)
     const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@storename.com' } });
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash('admin123', 12);
@@ -21,6 +21,24 @@ export const seedDatabase = async (req: Request, res: Response, next: NextFuncti
       results.push('Admin user created');
     } else {
       results.push('Admin user exists');
+    }
+
+    // Store owner admin
+    const ownerEmail = 'rajakajaykumar686@gmail.com';
+    const existingOwner = await prisma.user.findUnique({ where: { email: ownerEmail } });
+    if (existingOwner) {
+      const hashedPassword = await bcrypt.hash('@Kareena.com201522', 12);
+      await prisma.user.update({
+        where: { email: ownerEmail },
+        data: { role: 'ADMIN', password: hashedPassword },
+      });
+      results.push('Owner account promoted to ADMIN');
+    } else {
+      const hashedPassword = await bcrypt.hash('@Kareena.com201522', 12);
+      await prisma.user.create({
+        data: { name: 'Ajay Kumar', email: ownerEmail, password: hashedPassword, role: 'ADMIN', phone: '+919876543210' },
+      });
+      results.push('Owner admin account created');
     }
 
     // Customer user
