@@ -24,9 +24,9 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
       - key: CORS_ORIGIN
-        value: https://ecommerce-frontend.onrender.com
+        value: https://ecommerce-frontend-35b3.onrender.com
       - key: SITE_URL
-        value: https://ecommerce-frontend.onrender.com
+        value: https://ecommerce-frontend-35b3.onrender.com
       - key: RAZORPAY_KEY_ID
         value: rzp_test_placeholder
       - key: RAZORPAY_KEY_SECRET
@@ -60,9 +60,9 @@ services:
     autoDeploy: true
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://ecommerce-backend.onrender.com/api/v1
+        value: https://ecommerce-backend-ss1r.onrender.com/api/v1
       - key: NEXT_PUBLIC_SITE_URL
-        value: https://ecommerce-frontend.onrender.com
+        value: https://ecommerce-frontend-35b3.onrender.com
       - key: NEXT_PUBLIC_RAZORPAY_KEY_ID
         value: rzp_test_placeholder
       - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY

@@ -11,9 +11,11 @@ import adminRoutes from './admin.routes';
 import publicRoutes from './public.routes';
 import invoiceRoutes from './invoice.routes';
 import inventoryRoutes from './inventory.routes';
+import { seedDatabase } from '../controllers/seed.controller';
 
 const router = Router();
 
+router.get('/seed', seedDatabase);
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/cart', cartRoutes);
