@@ -1,0 +1,382 @@
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+
+type RequestOptions = {
+  method?: string;
+  body?: any;
+  headers?: Record<string, string>;
+  cache?: RequestCache;
+  next?: { revalidate?: number; tags?: string[] };
+};
+
+class ApiClient {
+  private baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
+
+  private getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('accessToken');
+  }
+
+  private async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    const { method = 'GET', body, headers = {}, cache, next } = options;
+    const token = this.getToken();
+
+    const config: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      ...(cache ? { cache } : {}),
+      ...(next ? { next } : {}),
+    };
+
+    if (body && method !== 'GET') {
+      config.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, config);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Something went wrong');
+    }
+
+    return data;
+  }
+
+  // Auth
+  async login(email: string, password: string) {
+    return this.request('/auth/login', { method: 'POST', body: { email, password } });
+  }
+
+  async register(name: string, email: string, password: string, phone?: string) {
+    return this.request('/auth/register', { method: 'POST', body: { name, email, password, phone } });
+  }
+
+  async getMe() {
+    return this.request('/auth/me');
+  }
+
+  async updateProfile(data: any) {
+    return this.request('/auth/profile', { method: 'PUT', body: data });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/auth/change-password', { method: 'PUT', body: { currentPassword, newPassword } });
+  }
+
+  async forgotPassword(email: string) {
+    return this.request('/auth/forgot-password', { method: 'POST', body: { email } });
+  }
+
+  // Products
+  async getProducts(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/products${query}`);
+  }
+
+  async getProductBySlug(slug: string) {
+    return this.request(`/products/${slug}`);
+  }
+
+  async getFeaturedProducts() {
+    return this.request('/products/featured', { next: { revalidate: 300 } });
+  }
+
+  async getNewArrivals() {
+    return this.request('/products/new-arrivals', { next: { revalidate: 300 } });
+  }
+
+  async getBestSellers() {
+    return this.request('/products/best-sellers', { next: { revalidate: 300 } });
+  }
+
+  async getTrendingProducts() {
+    return this.request('/products/trending', { next: { revalidate: 300 } });
+  }
+
+  async searchProducts(q: string) {
+    return this.request(`/products/search?q=${encodeURIComponent(q)}`);
+  }
+
+  async checkPincode(pincode: string) {
+    return this.request(`/products/pincode/${pincode}`);
+  }
+
+  // Cart
+  async getCart() {
+    return this.request('/cart');
+  }
+
+  async addToCart(productId: string, quantity: number = 1, variantId?: string) {
+    return this.request('/cart', { method: 'POST', body: { productId, quantity, variantId } });
+  }
+
+  async updateCartItem(id: string, quantity: number) {
+    return this.request(`/cart/${id}`, { method: 'PUT', body: { quantity } });
+  }
+
+  async removeFromCart(id: string) {
+    return this.request(`/cart/${id}`, { method: 'DELETE' });
+  }
+
+  async clearCart() {
+    return this.request('/cart', { method: 'DELETE' });
+  }
+
+  // Wishlist
+  async getWishlist() {
+    return this.request('/wishlist');
+  }
+
+  async addToWishlist(productId: string) {
+    return this.request('/wishlist', { method: 'POST', body: { productId } });
+  }
+
+  async removeFromWishlist(id: string) {
+    return this.request(`/wishlist/${id}`, { method: 'DELETE' });
+  }
+
+  async toggleWishlist(productId: string) {
+    return this.request('/wishlist/toggle', { method: 'POST', body: { productId } });
+  }
+
+  // Orders
+  async createOrder(data: any) {
+    return this.request('/orders', { method: 'POST', body: data });
+  }
+
+  async getOrders(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/orders${query}`);
+  }
+
+  async getOrderByNumber(orderNumber: string) {
+    return this.request(`/orders/${orderNumber}`);
+  }
+
+  async cancelOrder(orderNumber: string) {
+    return this.request(`/orders/${orderNumber}/cancel`, { method: 'POST' });
+  }
+
+  async generateInvoice(orderId: string) {
+    return this.request('/invoices/generate/' + orderId, { method: 'POST' });
+  }
+
+  async getInvoice(orderNumber: string) {
+    return this.request('/invoices/' + orderNumber);
+  }
+
+  async trackOrder(orderNumber: string) {
+    return this.request(`/orders/track/${orderNumber}`);
+  }
+
+  // Addresses
+  async getAddresses() {
+    return this.request('/addresses');
+  }
+
+  async createAddress(data: any) {
+    return this.request('/addresses', { method: 'POST', body: data });
+  }
+
+  async updateAddress(id: string, data: any) {
+    return this.request(`/addresses/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteAddress(id: string) {
+    return this.request(`/addresses/${id}`, { method: 'DELETE' });
+  }
+
+  // Payments
+  async createRazorpayOrder(orderId: string) {
+    return this.request('/payments/razorpay/create', { method: 'POST', body: { orderId } });
+  }
+
+  async verifyRazorpayPayment(data: any) {
+    return this.request('/payments/razorpay/verify', { method: 'POST', body: data });
+  }
+
+  async createStripePaymentIntent(orderId: string) {
+    return this.request('/payments/stripe/create-intent', { method: 'POST', body: { orderId } });
+  }
+
+  // Reviews
+  async createReview(data: any) {
+    return this.request('/reviews', { method: 'POST', body: data });
+  }
+
+  async getProductReviews(productId: string, params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/reviews/product/${productId}${query}`);
+  }
+
+  // Public
+  async getCategories() {
+    return this.request('/categories', { next: { revalidate: 3600 } });
+  }
+
+  async getBrands() {
+    return this.request('/brands', { next: { revalidate: 3600 } });
+  }
+
+  async getBanners() {
+    return this.request('/banners', { next: { revalidate: 3600 } });
+  }
+
+  async getFAQs() {
+    return this.request('/faqs', { next: { revalidate: 3600 } });
+  }
+
+  async getPolicies() {
+    return this.request('/policies', { next: { revalidate: 3600 } });
+  }
+
+  async getBlogPosts() {
+    return this.request('/blog', { next: { revalidate: 600 } });
+  }
+
+  async getSettings() {
+    return this.request('/settings', { next: { revalidate: 3600 } });
+  }
+
+  async submitContact(data: any) {
+    return this.request('/contact', { method: 'POST', body: data });
+  }
+
+  async subscribe(email: string) {
+    return this.request('/subscribe', { method: 'POST', body: { email } });
+  }
+
+  async validateCoupon(code: string, subtotal: number) {
+    return this.request(`/coupons/validate/${encodeURIComponent(code)}?subtotal=${subtotal}`);
+  }
+
+  // Admin
+  async getAdminDashboard() {
+    return this.request('/admin/dashboard');
+  }
+
+  async getAdminProducts(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/products${query}`);
+  }
+
+  async createProduct(data: any) {
+    return this.request('/admin/products', { method: 'POST', body: data });
+  }
+
+  async updateProduct(id: string, data: any) {
+    return this.request(`/admin/products/${id}`, { method: 'PUT', body: data });
+  }
+
+  async deleteProduct(id: string) {
+    return this.request(`/admin/products/${id}`, { method: 'DELETE' });
+  }
+
+  // Admin: Categories, Brands, Banners, Orders, Coupons, etc.
+  async getAdminCategories() { return this.request('/admin/categories'); }
+  async createCategory(data: any) { return this.request('/admin/categories', { method: 'POST', body: data }); }
+  async updateCategory(id: string, data: any) { return this.request(`/admin/categories/${id}`, { method: 'PUT', body: data }); }
+  async deleteCategory(id: string) { return this.request(`/admin/categories/${id}`, { method: 'DELETE' }); }
+
+  async getAdminBrands() { return this.request('/admin/brands'); }
+  async createBrand(data: any) { return this.request('/admin/brands', { method: 'POST', body: data }); }
+  async updateBrand(id: string, data: any) { return this.request(`/admin/brands/${id}`, { method: 'PUT', body: data }); }
+  async deleteBrand(id: string) { return this.request(`/admin/brands/${id}`, { method: 'DELETE' }); }
+
+  async getAdminBanners() { return this.request('/admin/banners'); }
+  async createBanner(data: any) { return this.request('/admin/banners', { method: 'POST', body: data }); }
+  async updateBanner(id: string, data: any) { return this.request(`/admin/banners/${id}`, { method: 'PUT', body: data }); }
+  async deleteBanner(id: string) { return this.request(`/admin/banners/${id}`, { method: 'DELETE' }); }
+
+  async getAdminOrders(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/orders${query}`);
+  }
+
+  async updateOrderStatus(id: string, data: any) {
+    return this.request(`/admin/orders/${id}/status`, { method: 'PUT', body: data });
+  }
+
+  async getAdminCustomers(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/customers${query}`);
+  }
+
+  async getAdminCoupons(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/coupons${query}`);
+  }
+  async getAdminCoupon(id: string) { return this.request(`/admin/coupons/${id}`); }
+  async createCoupon(data: any) { return this.request('/admin/coupons', { method: 'POST', body: data }); }
+  async updateCoupon(id: string, data: any) { return this.request(`/admin/coupons/${id}`, { method: 'PUT', body: data }); }
+  async deleteCoupon(id: string) { return this.request(`/admin/coupons/${id}`, { method: 'DELETE' }); }
+
+  async getAdminReviews() { return this.request('/admin/reviews'); }
+  async toggleReview(id: string) { return this.request(`/admin/reviews/${id}/toggle`, { method: 'PUT' }); }
+  async deleteReview(id: string) { return this.request(`/admin/reviews/${id}`, { method: 'DELETE' }); }
+
+  async getAdminBlogs() { return this.request('/admin/blog'); }
+  async createBlog(data: any) { return this.request('/admin/blog', { method: 'POST', body: data }); }
+  async updateBlog(id: string, data: any) { return this.request(`/admin/blog/${id}`, { method: 'PUT', body: data }); }
+  async deleteBlog(id: string) { return this.request(`/admin/blog/${id}`, { method: 'DELETE' }); }
+
+  async getAdminSettings() { return this.request('/admin/settings'); }
+  async updateSettings(data: any) { return this.request('/admin/settings', { method: 'PUT', body: data }); }
+
+  async getAdminPolicies() { return this.request('/admin/policies'); }
+  async updatePolicy(type: string, data: any) { return this.request(`/admin/policies/${type}`, { method: 'PUT', body: data }); }
+
+  async getContactMessages() { return this.request('/admin/contact-messages'); }
+  async getSubscribers() { return this.request('/admin/subscribers'); }
+
+  async getAdminFAQs() { return this.request('/admin/faqs'); }
+  async createFAQ(data: any) { return this.request('/admin/faqs', { method: 'POST', body: data }); }
+  async updateFAQ(id: string, data: any) { return this.request(`/admin/faqs/${id}`, { method: 'PUT', body: data }); }
+  async deleteFAQ(id: string) { return this.request(`/admin/faqs/${id}`, { method: 'DELETE' }); }
+
+  async getAnalytics() { return this.request('/admin/analytics'); }
+
+  async getAdminUsers(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/users${query}`);
+  }
+  async getAdminUser(id: string) { return this.request(`/admin/users/${id}`); }
+  async updateAdminUser(id: string, data: any) { return this.request(`/admin/users/${id}`, { method: 'PUT', body: data }); }
+  async updateUserRole(id: string, data: any) { return this.request(`/admin/users/${id}/role`, { method: 'PUT', body: data }); }
+
+  async getAdminDashboardStats() { return this.request('/admin/dashboard/stats'); }
+  async getAdminSalesReport(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/dashboard/sales-report${query}`);
+  }
+
+  async updateAdminSettings(data: any) { return this.request('/admin/settings', { method: 'PUT', body: data }); }
+
+  async getBackups() { return this.request('/admin/backups'); }
+
+  async adminVerifyPayment(orderId: string) {
+    return this.request(`/admin/orders/${orderId}/verify-payment`, { method: 'PUT' });
+  }
+
+  // Inventory
+  async lockInventory(items: any[]) {
+    return this.request('/inventory/lock', { method: 'POST', body: items });
+  }
+
+  async releaseInventory() {
+    return this.request('/inventory/release', { method: 'POST' });
+  }
+
+  async confirmInventory() {
+    return this.request('/inventory/confirm', { method: 'POST' });
+  }
+}
+
+export const api = new ApiClient(API_BASE);

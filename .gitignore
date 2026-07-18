@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+dist/
+.next/
+*.db
+*.db-journal
+uploads/
+.DS_Store
+Thumbs.db
