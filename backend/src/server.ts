@@ -46,6 +46,21 @@ app.get('/health', (req, res) => {
   res.json({ success: true, message: 'API is running', timestamp: new Date().toISOString() });
 });
 
+// API root
+app.get('/api/v1', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'Premium Fashion Store API',
+    version: '1.0.0',
+    docs: {
+      products: '/api/v1/products',
+      categories: '/api/v1/categories',
+      auth: '/api/v1/auth/login',
+      health: '/health',
+    },
+  });
+});
+
 // API routes
 app.use('/api/v1', routes);
 
