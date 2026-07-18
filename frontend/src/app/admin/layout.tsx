@@ -30,16 +30,47 @@ const sidebarLinks = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (!user || user.role === 'CUSTOMER') {
+  if (loading) {
     return (
-      <div className="container-custom py-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-        <p className="text-gray-500 mb-4">You do not have permission to access this area.</p>
-        <Link href="/" className="text-[#1a1a2e] underline">Back to Home</Link>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin h-8 w-8 border-2 border-gray-300 border-t-[#C9A84C] rounded-full" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md mx-auto p-8">
+          <Shield className="mx-auto h-12 w-12 text-[#C9A84C] mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Admin Login Required</h1>
+          <p className="text-gray-500 mb-6">Please log in with your admin credentials to access the dashboard.</p>
+          <Link href="/auth/login?redirect=/admin" className="inline-block bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium">
+            Login as Admin
+          </Link>
+          <p className="text-xs text-gray-400 mt-4">
+            Admin: admin@storename.com / admin123
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'MANAGER') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md mx-auto p-8">
+          <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+          <p className="text-gray-500 mb-6">You don&apos;t have permission to access the admin panel. This area is restricted to administrators.</p>
+          <Link href="/" className="inline-block bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium">
+            Back to Store
+          </Link>
+        </div>
       </div>
     );
   }

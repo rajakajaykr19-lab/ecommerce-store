@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,17 @@ import { Input } from '@/components/ui/input';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[70vh] flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-gray-300 border-t-[#C9A84C] rounded-full" /></div>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
@@ -21,7 +31,7 @@ export default function LoginPage() {
     try {
       await login(form.email, form.password);
       toast.success('Welcome back!');
-      router.push('/');
+      router.push(redirectTo);
     } catch (err: any) {
       toast.error(err.message);
     }
