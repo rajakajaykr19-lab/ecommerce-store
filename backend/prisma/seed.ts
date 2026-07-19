@@ -115,6 +115,83 @@ async function main() {
     });
   }
 
+  // Description Templates
+  const descTemplates: { categoryId: string; title: string; description: string; displayOrder: number }[] = [
+    // Men - Shirts
+    ...(await prisma.category.findMany({ where: { slug: 'men-shirts' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Casual Cotton Shirt', description: 'A versatile casual shirt crafted from premium cotton fabric. Features a relaxed fit with spread collar, full button placket, and short sleeves. Perfect for everyday wear, this shirt pairs effortlessly with jeans or chinos for a laid-back look.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Formal Office Shirt', description: 'Professional dress shirt designed for the modern workplace. Made from wrinkle-resistant cotton blend with a tailored fit, French placket, and adjustable cuffs. Ideal for boardroom meetings and formal events.', displayOrder: 2 },
+      { categoryId: c.id, title: 'Linen Summer Shirt', description: 'Breathable linen shirt perfect for warm weather. Features a camp collar, boxy fit, and natural linen texture. The lightweight fabric keeps you cool while maintaining a stylish, relaxed appearance.', displayOrder: 3 },
+    ]),
+    // Men - T-Shirts
+    ...(await prisma.category.findMany({ where: { slug: 'men-t-shirts' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Classic Round Neck', description: 'Essential crew neck t-shirt made from 100% combed cotton. Pre-shrunk fabric ensures a consistent fit wash after wash. Features reinforced seams and a soft hand feel for all-day comfort.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Polo T-Shirt', description: 'Smart-casual polo shirt with ribbed collar and two-button placket. Crafted from pique cotton for a textured finish. Perfect for golf outings, brunch dates, or smart-casual office days.', displayOrder: 2 },
+      { categoryId: c.id, title: 'Oversized Graphic Tee', description: 'Trendy oversized t-shirt featuring bold graphic prints. Made from heavyweight cotton with a dropped shoulder silhouette. A streetwear staple that makes a statement.', displayOrder: 3 },
+    ]),
+    // Men - Jeans
+    ...(await prisma.category.findMany({ where: { slug: 'men-jeans' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Slim Fit Stretch Jeans', description: 'Modern slim fit jeans with 4-way stretch denim for maximum comfort. Mid-rise waist, five-pocket styling, and tapered leg. Retains shape throughout the day with premium recovery technology.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Regular Fit Classic Jeans', description: 'Timeless regular fit jeans in authentic indigo wash. Made from rigid 12oz denim that softens with wear. Classic five-pocket design with a straight leg for a comfortable, traditional silhouette.', displayOrder: 2 },
+      { categoryId: c.id, title: 'Skinny Fit Jeans', description: 'Sleek skinny fit jeans with super-stretch fabric for a body-hugging fit. Low-rise waist with ankle-length hem. Perfect for a contemporary, streamlined look.', displayOrder: 3 },
+    ]),
+    // Men - Jackets
+    ...(await prisma.category.findMany({ where: { slug: 'men-jackets' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Bomber Jacket', description: 'Classic bomber jacket with ribbed collar, cuffs, and hem. Lightweight quilted lining for warmth without bulk. Features zip closure and side pockets. A timeless outerwear piece.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Denim Jacket', description: 'Iconic denim jacket in premium cotton twill. Button-front closure with chest and side pockets. A wardrobe essential that layers perfectly over hoodies, t-shirts, and shirts.', displayOrder: 2 },
+    ]),
+    // Men - Trousers
+    ...(await prisma.category.findMany({ where: { slug: 'men-trousers' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Formal Trousers', description: 'Tailored formal trousers in wrinkle-free fabric. Flat-front design with a tapered leg for a sharp, professional look. Features a hook-and-bar closure and belt loops.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Chinos', description: 'Versatile chino trousers in a comfortable cotton-stretch blend. Mid-rise with a slim-straight fit. Available in multiple colors, perfect for smart-casual styling.', displayOrder: 2 },
+    ]),
+    // Women - Dresses
+    ...(await prisma.category.findMany({ where: { slug: 'women-dresses' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Casual Day Dress', description: 'Effortlessly stylish day dress in lightweight viscose fabric. Features a flattering A-line silhouette with a V-neckline and short sleeves. Perfect for brunch, shopping, or casual outings.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Evening Cocktail Dress', description: 'Elegant cocktail dress in premium satin fabric. Features a fitted bodice with a flared midi skirt. Ideal for dinner parties, date nights, and special occasions.', displayOrder: 2 },
+      { categoryId: c.id, title: 'Maxi Dress', description: 'Flowing maxi dress in soft georgette fabric. Features a tiered skirt with subtle pleating and adjustable straps. Perfect for beach vacations and summer events.', displayOrder: 3 },
+    ]),
+    // Women - Sarees
+    ...(await prisma.category.findMany({ where: { slug: 'women-sarees' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Silk Saree', description: 'Luxurious silk saree with intricate zari border and pallu. Comes with matching blouse piece. Perfect for weddings, festivals, and traditional celebrations.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Cotton Saree', description: 'Handloom cotton saree with traditional motifs. Lightweight and breathable, ideal for daily wear and office. Comes with running blouse material.', displayOrder: 2 },
+      { categoryId: c.id, title: 'Georgette Saree', description: 'Flowy georgette saree with printed design. Easy to drape and maintain. Perfect for parties and semi-formal occasions. Includes matching blouse piece.', displayOrder: 3 },
+    ]),
+    // Women - Kurtis
+    ...(await prisma.category.findMany({ where: { slug: 'women-kurtis' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'A-Line Kurti', description: 'Flattering A-line kurti in soft cotton fabric. Features three-quarter sleeves and a round neckline with subtle embroidery. Pair with leggings or palazzo pants for an elegant ethnic look.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Anarkali Kurti', description: 'Graceful Anarkali kurti with a flared hemline. Made from rayon with printed design. Perfect for festive occasions and casual gatherings.', displayOrder: 2 },
+    ]),
+    // Women - Tops
+    ...(await prisma.category.findMany({ where: { slug: 'women-tops' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Casual Printed Top', description: 'Trendy printed top in soft rayon fabric. Features a relaxed fit with short sleeves and a round neck. Easy to style with jeans, skirts, or shorts for a chic everyday look.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Formal Blouse', description: 'Sophisticated blouse in premium crepe fabric. Features a mandarin collar with front button closure and three-quarter sleeves. Perfect for office and formal events.', displayOrder: 2 },
+    ]),
+    // Kids
+    ...(await prisma.category.findMany({ where: { slug: 'kids' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Everyday Play Wear', description: 'Durable and comfortable clothing designed for active kids. Made from soft cotton fabric that withstands rough play and frequent washing. Bright colors and fun prints kids love.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Party Wear', description: 'Special occasion outfit for kids featuring premium fabrics and stylish designs. Perfect for birthday parties, family gatherings, and festive celebrations.', displayOrder: 2 },
+    ]),
+    // Baby
+    ...(await prisma.category.findMany({ where: { slug: 'baby' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Soft Cotton Onesie', description: 'Gentle onesie made from 100% organic cotton for delicate baby skin. Features envelope neckline for easy dressing and snap closure for quick diaper changes. Hypoallergenic and machine washable.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Winter Warm Set', description: 'Cozy winter set with fleece-lined jacket and matching pants. Soft ribbed cuffs to keep warmth in. Perfect for stroller walks and outdoor play in cold weather.', displayOrder: 2 },
+      { categoryId: c.id, title: 'Summer Romper', description: 'Lightweight romper in breathable cotton muslin. Short sleeves and snap crotch for easy changes. Ideal for warm weather outings and playtime.', displayOrder: 3 },
+    ]),
+    // Accessories
+    ...(await prisma.category.findMany({ where: { slug: 'accessories' } })).flatMap((c) => [
+      { categoryId: c.id, title: 'Premium Leather Accessory', description: 'Handcrafted accessory in genuine leather with premium stitching and hardware. Timeless design that complements both casual and formal outfits. Built to last with everyday use.', displayOrder: 1 },
+      { categoryId: c.id, title: 'Casual Everyday Accessory', description: 'Versatile everyday accessory in durable materials. Functional design meets modern aesthetics. Perfect for daily use and casual outings.', displayOrder: 2 },
+    ]),
+  ];
+
+  for (const tmpl of descTemplates) {
+    const existing = await prisma.descriptionTemplate.findFirst({ where: { categoryId: tmpl.categoryId, title: tmpl.title } });
+    if (!existing) {
+      await prisma.descriptionTemplate.create({ data: tmpl });
+    }
+  }
+
   // Brands
   const brandNames = ['Premium Wear', 'Urban Style', 'Classic Threads', 'Modern Fit', 'Elite Collection', 'Street Vogue'];
   for (const name of brandNames) {

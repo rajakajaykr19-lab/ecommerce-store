@@ -76,6 +76,7 @@ model Category {
   products        Product[]
   banners         Banner[]
   subcategoryAttributes SubcategoryAttribute[]
+  descriptionTemplates DescriptionTemplate[]
 
   @@index([slug])
   @@index([parentId])
@@ -616,4 +617,20 @@ model ProductAttributeValue {
   @@unique([productId, attributeId])
   @@index([productId])
   @@index([attributeId])
+}
+
+model DescriptionTemplate {
+  id              String      @id @default(uuid())
+  categoryId      String
+  title           String
+  description     String
+  displayOrder    Int         @default(0)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  category        Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([isActive])
 }

@@ -305,3 +305,16 @@ export const checkPincode = async (req: AuthRequest, res: Response, next: NextFu
     next(error);
   }
 };
+
+export const getDescriptionTemplates = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const categoryId = req.params.categoryId as string;
+    const templates = await prisma.descriptionTemplate.findMany({
+      where: { categoryId, isActive: true },
+      orderBy: { displayOrder: 'asc' },
+    });
+    res.json({ success: true, data: templates });
+  } catch (error) {
+    next(error);
+  }
+};

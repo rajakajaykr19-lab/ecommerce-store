@@ -108,6 +108,10 @@ class ApiClient {
     return this.request(`/products/pincode/${pincode}`);
   }
 
+  async getDescriptionTemplates(categoryId: string) {
+    return this.request(`/products/description-templates/${categoryId}`);
+  }
+
   // Cart
   async getCart() {
     return this.request('/cart');

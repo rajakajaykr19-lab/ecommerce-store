@@ -19,7 +19,6 @@ export default function AdminCreateProductPage() {
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
-  const [imageUrl, setImageUrl] = useState('');
   const [bulkUrls, setBulkUrls] = useState('');
   const [form, setForm] = useState({
     name: '', description: '', slug: '', sku: '', hsnCode: '',
@@ -36,6 +35,8 @@ export default function AdminCreateProductPage() {
   const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [descriptionTemplates, setDescriptionTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -53,6 +54,7 @@ export default function AdminCreateProductPage() {
       setSubcategoryId('');
       setAttributes([]);
       setAttributeValues({});
+      setDescriptionTemplates([]);
       return;
     }
     const children = categories.filter((c: any) => c.parentId === form.categoryId);
@@ -71,6 +73,11 @@ export default function AdminCreateProductPage() {
         setAttributeValues({});
       }
     }
+    setLoadingTemplates(true);
+    api.getDescriptionTemplates(form.categoryId)
+      .then((res: any) => setDescriptionTemplates(res.data || []))
+      .catch(() => setDescriptionTemplates([]))
+      .finally(() => setLoadingTemplates(false));
   }, [form.categoryId, categories]);
 
   useEffect(() => {
@@ -112,13 +119,6 @@ export default function AdminCreateProductPage() {
     set('name', name);
     if (!form.slug || form.slug === slugify(form.name)) {
       set('slug', slugify(name));
-    }
-  };
-
-  const addImage = () => {
-    if (imageUrl.trim() && !images.includes(imageUrl.trim())) {
-      setImages([...images, imageUrl.trim()]);
-      setImageUrl('');
     }
   };
 
@@ -196,8 +196,34 @@ export default function AdminCreateProductPage() {
               <input type="text" value={form.sku} onChange={(e) => set('sku', e.target.value)} className={inputClass} required />
             </div>
             <div className="md:col-span-2">
-              <label className={labelClass}>Description</label>
-              <textarea value={form.description} onChange={(e) => set('description', e.target.value)} className={inputClass} rows={4} />
+              <label className={labelClass}>Description Template</label>
+              {loadingTemplates ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                  <Loader2 className="animate-spin" size={14} /> Loading templates...
+                </div>
+              ) : descriptionTemplates.length > 0 ? (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const tmpl = descriptionTemplates.find((t) => t.id === e.target.value);
+                    if (tmpl) set('description', tmpl.description);
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">Select a template...</option>
+                  {descriptionTemplates.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                </select>
+              ) : form.categoryId ? (
+                <p className="text-sm text-gray-400 py-2">No templates for this category. Write manually below.</p>
+              ) : (
+                <p className="text-sm text-gray-400 py-2">Select a category to see description templates.</p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Description (edit or write your own)</label>
+              <textarea value={form.description} onChange={(e) => set('description', e.target.value)} className={inputClass} rows={4} placeholder="Select a template above or write a custom description..." />
             </div>
           </div>
         </div>
@@ -316,14 +342,10 @@ export default function AdminCreateProductPage() {
         {/* Images */}
         <div className="bg-white border p-6">
           <h2 className="text-lg font-semibold mb-4">Images</h2>
-          <div className="flex gap-2 mb-3">
-            <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL" className={inputClass} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())} />
-            <Button type="button" variant="outline" size="sm" onClick={addImage}>Add</Button>
-          </div>
           <div className="mb-4">
-            <label className={labelClass}>Bulk URLs (one per line)</label>
-            <textarea value={bulkUrls} onChange={(e) => setBulkUrls(e.target.value)} className={inputClass} rows={3} placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" />
-            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addBulkImages}>Add Bulk URLs</Button>
+            <label className={labelClass}>Image URLs (one per line)</label>
+            <textarea value={bulkUrls} onChange={(e) => setBulkUrls(e.target.value)} className={inputClass} rows={4} placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg" />
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addBulkImages}>Add Images</Button>
           </div>
           {images.length > 0 && (
             <div className="flex flex-wrap gap-3">
@@ -339,7 +361,7 @@ export default function AdminCreateProductPage() {
             </div>
           )}
           {images.length === 0 && <p className="text-sm text-gray-400">No images added yet.</p>}
-          {images.length > 0 && <p className="text-sm text-gray-500 mt-2">{images.length} image(s) added</p>}
+          {images.length > 0 && <p className="text-sm text-gray-500 mt-2">{images.length} image(s) added. First image is primary.</p>}
         </div>
 
         {/* Status Toggles */}
