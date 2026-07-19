@@ -58,16 +58,29 @@ export interface ProductImage {
 
 export interface ProductVariant {
   id: string; productId: string; size?: string; color?: string; colorHex?: string;
-  sku: string; price?: number; stock: number; isActive: boolean;
+  sku: string; barcode?: string; price?: number; stock: number; weight?: number;
+  isActive: boolean;
 }
 
 export interface Product {
   id: string; name: string; slug: string; description: string;
-  shortDescription?: string; categoryId: string; brandId?: string;
+  shortDescription?: string; tags?: string; adminNotes?: string;
+  status?: string; categoryId: string; brandId?: string;
   gender?: string; basePrice: number; salePrice?: number;
-  discountPercent?: number; currency: string; sku: string;
+  discountPercent?: number; currency: string; sku: string; barcode?: string;
+  weight?: number; length?: number; width?: number; height?: number;
+  shippingClass?: string;
   isActive: boolean; isFeatured: boolean; isNewArrival: boolean;
   isBestSeller: boolean; isTrending: boolean;
+  fabric?: string; material?: string; washCare?: string;
+  hsnCode?: string; gstRate?: number;
+  metaTitle?: string; metaDescription?: string; metaKeywords?: string;
+  canonicalUrl?: string; ogImage?: string;
+  returnAvailable?: boolean; returnPeriod?: number; exchangeAvailable?: boolean;
+  warrantyPeriod?: string;
+  couponEligible?: boolean; flashSale?: boolean; bogo?: boolean;
+  festivalOffer?: boolean; specialDiscount?: number;
+  publishedAt?: string; createdAt: string; updatedAt: string;
   category: { id: string; name: string; slug?: string };
   brand?: { id: string; name: string };
   images: ProductImage[]; variants: ProductVariant[];
@@ -75,6 +88,7 @@ export interface Product {
   inStock?: boolean; totalStock?: number; sizes?: string[]; colors?: { color: string; colorHex: string }[];
   reviews?: Review[]; relatedProducts?: Product[];
   availableVariants?: { size: string; stock: number; color?: string; colorHex?: string }[];
+  _count?: { wishlistItems?: number; reviews?: number };
 }
 
 export interface Review {

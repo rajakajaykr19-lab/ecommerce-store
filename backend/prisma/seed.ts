@@ -115,6 +115,22 @@ async function main() {
     });
   }
 
+  // Footwear category
+  const footwearCat = await prisma.category.upsert({
+    where: { slug: 'footwear' },
+    update: {},
+    create: { name: 'Footwear', slug: 'footwear', gender: 'ACCESSORIES', displayOrder: 6, description: 'Shoes, sandals & more' },
+  });
+
+  const footwearSubs = ['Sneakers', 'Formal Shoes', 'Sandals', 'Slippers', 'Sports Shoes', 'Boots', 'Flats'];
+  for (const name of footwearSubs) {
+    await prisma.category.upsert({
+      where: { slug: `footwear-${name.toLowerCase().replace(/\s+/g, '-')}` },
+      update: {},
+      create: { name, slug: `footwear-${name.toLowerCase().replace(/\s+/g, '-')}`, parentId: footwearCat.id, gender: 'ACCESSORIES', displayOrder: footwearSubs.indexOf(name) + 1 },
+    });
+  }
+
   // Description Templates
   const descTemplates: { categoryId: string; title: string; description: string; displayOrder: number }[] = [
     // Men - Shirts
@@ -189,6 +205,89 @@ async function main() {
     const existing = await prisma.descriptionTemplate.findFirst({ where: { categoryId: tmpl.categoryId, title: tmpl.title } });
     if (!existing) {
       await prisma.descriptionTemplate.create({ data: tmpl });
+    }
+  }
+
+  // Attribute Groups & Attributes
+  const clothingGroup = await prisma.attributeGroup.upsert({ where: { slug: 'clothing' }, update: {}, create: { name: 'Clothing', slug: 'clothing', displayOrder: 1 } });
+  const footwearGroup = await prisma.attributeGroup.upsert({ where: { slug: 'footwear-attrs' }, update: {}, create: { name: 'Footwear', slug: 'footwear-attrs', displayOrder: 2 } });
+  const accessoryGroup = await prisma.attributeGroup.upsert({ where: { slug: 'accessories-attrs' }, update: {}, create: { name: 'Accessories', slug: 'accessories-attrs', displayOrder: 3 } });
+  const babyGroup = await prisma.attributeGroup.upsert({ where: { slug: 'baby-attrs' }, update: {}, create: { name: 'Baby', slug: 'baby-attrs', displayOrder: 4 } });
+
+  const clothingAttrs = [
+    { name: 'Sleeve Type', slug: 'sleeve-type', fieldType: 'select', options: '["Full Sleeve","Half Sleeve","Short Sleeve","Sleeveless","Three-Quarter Sleeve"]', filterable: true, displayOrder: 1 },
+    { name: 'Neck Type', slug: 'neck-type', fieldType: 'select', options: '["Round Neck","V-Neck","Collared","Mandarin","Hooded","Boat Neck","Square Neck"]', filterable: true, displayOrder: 2 },
+    { name: 'Fit', slug: 'fit', fieldType: 'select', options: '["Regular Fit","Slim Fit","Loose Fit","Oversized","Athletic Fit","Tailored"]', filterable: true, displayOrder: 3 },
+    { name: 'Pattern', slug: 'pattern', fieldType: 'select', options: '["Solid","Striped","Printed","Checks","Floral","Graphic","Abstract","Camouflage"]', filterable: true, displayOrder: 4 },
+    { name: 'Occasion', slug: 'occasion', fieldType: 'select', options: '["Casual","Formal","Party","Sports","Wedding","Festival","Daily Wear"]', filterable: true, displayOrder: 5 },
+    { name: 'Season', slug: 'season', fieldType: 'select', options: '["Summer","Winter","Monsoon","All Season","Spring","Autumn"]', filterable: true, displayOrder: 6 },
+    { name: 'Stretch', slug: 'stretch', fieldType: 'select', options: '["No Stretch","Medium Stretch","High Stretch","4-Way Stretch"]', displayOrder: 7 },
+  ];
+
+  const jeansAttrs = [
+    { name: 'Rise', slug: 'rise', fieldType: 'select', options: '["Low Rise","Mid Rise","High Rise","Ultra High Rise"]', filterable: true, displayOrder: 1 },
+    { name: 'Closure', slug: 'closure', fieldType: 'select', options: '["Button Fly","Zip Fly","Elastic","Drawstring"]', displayOrder: 2 },
+    { name: 'Length', slug: 'jean-length', fieldType: 'select', options: '["Full Length","Ankle Length","Cropped","Capri"]', filterable: true, displayOrder: 3 },
+    { name: 'Wash', slug: 'wash', fieldType: 'select', options: '["Raw","Light Wash","Medium Wash","Dark Wash","Black Wash","Acid Wash"]', filterable: true, displayOrder: 4 },
+    { name: 'Distressed', slug: 'distressed', fieldType: 'boolean', displayOrder: 5 },
+  ];
+
+  const footwearAttrs = [
+    { name: 'Shoe Size', slug: 'shoe-size', fieldType: 'select', options: '["6","7","8","9","10","11","12","2","3","4","5"]', filterable: true, displayOrder: 1 },
+    { name: 'Sole Material', slug: 'sole-material', fieldType: 'select', options: '["Rubber","EVA","PU Leather","Leather","Foam","TPR"]', filterable: true, displayOrder: 2 },
+    { name: 'Upper Material', slug: 'upper-material', fieldType: 'select', options: '["Leather","Canvas","Mesh","Synthetic","Suede","Textile"]', filterable: true, displayOrder: 3 },
+    { name: 'Heel Height', slug: 'heel-height', fieldType: 'select', options: '["Flat","Low Heel","Mid Heel","High Heel","Platform"]', displayOrder: 4 },
+    { name: 'Closure', slug: 'footwear-closure', fieldType: 'select', options: '["Lace-Up","Slip-On","Velcro","Buckle","Zipper","Elastic"]', displayOrder: 5 },
+    { name: 'Waterproof', slug: 'waterproof', fieldType: 'boolean', displayOrder: 6 },
+  ];
+
+  const accessoryAttrs = [
+    { name: 'Material', slug: 'acc-material', fieldType: 'select', options: '["Leather","PU Leather","Canvas","Nylon","Metal","Plastic","Wood"]', filterable: true, displayOrder: 1 },
+    { name: 'Closure', slug: 'acc-closure', fieldType: 'select', options: '["Zipper","Buckle","Snap","Magnetic","Drawstring","Velcro"]', displayOrder: 2 },
+    { name: 'Water Resistant', slug: 'water-resistant', fieldType: 'boolean', displayOrder: 3 },
+    { name: 'Compartments', slug: 'compartments', fieldType: 'number', displayOrder: 4 },
+    { name: 'Laptop Compatible', slug: 'laptop-compatible', fieldType: 'boolean', displayOrder: 5 },
+    { name: 'Capacity', slug: 'capacity', fieldType: 'text', displayOrder: 6 },
+  ];
+
+  const babyAttrs = [
+    { name: 'Age Range', slug: 'age-range', fieldType: 'select', options: '["0-3 Months","3-6 Months","6-12 Months","12-18 Months","18-24 Months","2-3 Years","3-4 Years"]', filterable: true, displayOrder: 1 },
+    { name: 'Baby Skin Safe', slug: 'baby-skin-safe', fieldType: 'boolean', displayOrder: 2 },
+    { name: 'Hypoallergenic', slug: 'hypoallergenic', fieldType: 'boolean', displayOrder: 3 },
+    { name: 'Machine Washable', slug: 'machine-washable', fieldType: 'boolean', displayOrder: 4 },
+    { name: 'Organic', slug: 'organic', fieldType: 'boolean', displayOrder: 5 },
+  ];
+
+  const allClothingAttrs = [...clothingAttrs, ...jeansAttrs];
+  const allAttrsMap: Record<string, { attrs: any[]; groupId: string }> = {
+    'men': { attrs: allClothingAttrs, groupId: clothingGroup.id },
+    'women': { attrs: allClothingAttrs, groupId: clothingGroup.id },
+    'kids': { attrs: [...clothingAttrs.slice(0, 4), ...babyAttrs.slice(0, 3)], groupId: clothingGroup.id },
+    'accessories': { attrs: accessoryAttrs, groupId: accessoryGroup.id },
+    'baby': { attrs: babyAttrs, groupId: babyGroup.id },
+    'footwear': { attrs: footwearAttrs, groupId: footwearGroup.id },
+  };
+
+  for (const [catSlug, config] of Object.entries(allAttrsMap)) {
+    const cat = await prisma.category.findUnique({ where: { slug: catSlug } });
+    if (!cat) continue;
+
+    const childCats = await prisma.category.findMany({ where: { parentId: cat.id } });
+    const targetCats = [cat, ...childCats];
+
+    for (const attrDef of config.attrs) {
+      let attr = await prisma.attribute.findUnique({ where: { slug: attrDef.slug } });
+      if (!attr) {
+        attr = await prisma.attribute.create({
+          data: { groupId: config.groupId, name: attrDef.name, slug: attrDef.slug, fieldType: attrDef.fieldType, options: attrDef.options || '[]', filterable: attrDef.filterable || false, displayOrder: attrDef.displayOrder },
+        });
+      }
+      for (const targetCat of targetCats) {
+        const existing = await prisma.subcategoryAttribute.findFirst({ where: { subcategoryId: targetCat.id, attributeId: attr.id } });
+        if (!existing) {
+          await prisma.subcategoryAttribute.create({ data: { subcategoryId: targetCat.id, attributeId: attr.id, displayOrder: attrDef.displayOrder } });
+        }
+      }
     }
   }
 

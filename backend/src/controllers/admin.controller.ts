@@ -83,29 +83,64 @@ export const adminCreateProduct = async (req: AuthRequest, res: Response, next: 
       name: z.string().min(1).max(500),
       description: z.string().min(1),
       shortDescription: z.string().optional(),
+      tags: z.string().optional(),
+      adminNotes: z.string().optional(),
+      status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).default('PUBLISHED'),
       categoryId: z.string().uuid(),
       brandId: z.string().uuid().optional(),
-      gender: z.enum(['MEN', 'WOMEN', 'KIDS', 'ACCESSORIES']).optional(),
+      gender: z.string().optional(),
       basePrice: z.number().positive(),
       salePrice: z.number().positive().optional(),
       sku: z.string().min(1),
+      barcode: z.string().optional(),
+      weight: z.number().optional(),
+      length: z.number().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+      shippingClass: z.string().optional(),
+      hsnCode: z.string().optional(),
+      gstRate: z.number().optional(),
       isActive: z.boolean().default(true),
       isFeatured: z.boolean().default(false),
       isNewArrival: z.boolean().default(false),
       isBestSeller: z.boolean().default(false),
       isTrending: z.boolean().default(false),
+      fabric: z.string().optional(),
+      material: z.string().optional(),
+      washCare: z.string().optional(),
       metaTitle: z.string().optional(),
       metaDescription: z.string().optional(),
       metaKeywords: z.string().optional(),
+      canonicalUrl: z.string().optional(),
+      ogImage: z.string().optional(),
+      returnAvailable: z.boolean().optional(),
+      returnPeriod: z.number().optional(),
+      exchangeAvailable: z.boolean().optional(),
+      warrantyPeriod: z.string().optional(),
+      couponEligible: z.boolean().optional(),
+      flashSale: z.boolean().optional(),
+      bogo: z.boolean().optional(),
+      festivalOffer: z.boolean().optional(),
+      specialDiscount: z.number().optional(),
+      publishedAt: z.string().optional(),
       attributes: z.array(z.object({ attributeId: z.string(), value: z.string() })).optional(),
+      images: z.array(z.object({ url: z.string(), isPrimary: z.boolean().optional(), displayOrder: z.number().optional(), alt: z.string().optional() })).optional(),
+      variants: z.array(z.object({ size: z.string().optional(), color: z.string().optional(), colorHex: z.string().optional(), sku: z.string(), barcode: z.string().optional(), price: z.number().optional(), stock: z.number().default(0), weight: z.number().optional() })).optional(),
     });
     const data = schema.parse(req.body);
-    const { attributes, ...productData } = data;
+    const { attributes, images, variants, ...productData } = data;
 
     const slug = generateSlug(data.name) + '-' + Date.now().toString(36);
 
     const product = await prisma.product.create({
-      data: { ...productData, slug, discountPercent: data.salePrice ? Math.round(((data.basePrice - data.salePrice) / data.basePrice) * 100) : null },
+      data: {
+        ...productData,
+        slug,
+        hsnCode: productData.hsnCode || '6109',
+        gstRate: productData.gstRate || 12,
+        discountPercent: data.salePrice ? Math.round(((data.basePrice - data.salePrice) / data.basePrice) * 100) : null,
+        publishedAt: data.status === 'PUBLISHED' ? new Date() : null,
+      },
       include: { category: true, images: true, variants: true },
     });
 
@@ -115,7 +150,40 @@ export const adminCreateProduct = async (req: AuthRequest, res: Response, next: 
       });
     }
 
-    res.status(201).json({ success: true, message: 'Product created', data: product });
+    if (images && images.length > 0) {
+      await prisma.productImage.createMany({
+        data: images.map((img, i) => ({
+          productId: product.id,
+          url: img.url,
+          isPrimary: img.isPrimary ?? i === 0,
+          displayOrder: img.displayOrder ?? i,
+          alt: img.alt || product.name,
+        })),
+      });
+    }
+
+    if (variants && variants.length > 0) {
+      await prisma.productVariant.createMany({
+        data: variants.map((v) => ({
+          productId: product.id,
+          size: v.size,
+          color: v.color,
+          colorHex: v.colorHex,
+          sku: v.sku,
+          barcode: v.barcode,
+          price: v.price,
+          stock: v.stock,
+          weight: v.weight,
+        })),
+      });
+    }
+
+    const created = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: { category: true, images: true, variants: true },
+    });
+
+    res.status(201).json({ success: true, message: 'Product created', data: created });
   } catch (error) {
     next(error);
   }
@@ -128,30 +196,62 @@ export const adminUpdateProduct = async (req: AuthRequest, res: Response, next: 
       name: z.string().min(1).max(500).optional(),
       description: z.string().min(1).optional(),
       shortDescription: z.string().optional(),
+      tags: z.string().optional(),
+      adminNotes: z.string().optional(),
+      status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional(),
       categoryId: z.string().uuid().optional(),
       brandId: z.string().uuid().nullable().optional(),
-      gender: z.enum(['MEN', 'WOMEN', 'KIDS', 'ACCESSORIES']).nullable().optional(),
+      gender: z.string().nullable().optional(),
       basePrice: z.number().positive().optional(),
       salePrice: z.number().positive().nullable().optional(),
       sku: z.string().min(1).optional(),
+      barcode: z.string().optional(),
+      weight: z.number().nullable().optional(),
+      length: z.number().nullable().optional(),
+      width: z.number().nullable().optional(),
+      height: z.number().nullable().optional(),
+      shippingClass: z.string().optional(),
+      hsnCode: z.string().optional(),
+      gstRate: z.number().optional(),
       isActive: z.boolean().optional(),
       isFeatured: z.boolean().optional(),
       isNewArrival: z.boolean().optional(),
       isBestSeller: z.boolean().optional(),
       isTrending: z.boolean().optional(),
+      fabric: z.string().optional(),
+      material: z.string().optional(),
+      washCare: z.string().optional(),
       metaTitle: z.string().optional(),
       metaDescription: z.string().optional(),
       metaKeywords: z.string().optional(),
+      canonicalUrl: z.string().optional(),
+      ogImage: z.string().optional(),
+      returnAvailable: z.boolean().optional(),
+      returnPeriod: z.number().optional(),
+      exchangeAvailable: z.boolean().optional(),
+      warrantyPeriod: z.string().optional(),
+      couponEligible: z.boolean().optional(),
+      flashSale: z.boolean().optional(),
+      bogo: z.boolean().optional(),
+      festivalOffer: z.boolean().optional(),
+      specialDiscount: z.number().nullable().optional(),
+      publishedAt: z.string().optional(),
       attributes: z.array(z.object({ attributeId: z.string(), value: z.string() })).optional(),
+      images: z.array(z.object({ url: z.string(), isPrimary: z.boolean().optional(), displayOrder: z.number().optional(), alt: z.string().optional() })).optional(),
+      variants: z.array(z.object({ id: z.string().optional(), size: z.string().optional(), color: z.string().optional(), colorHex: z.string().optional(), sku: z.string(), barcode: z.string().optional(), price: z.number().optional(), stock: z.number().default(0), weight: z.number().optional(), isActive: z.boolean().optional() })).optional(),
     });
     const data = schema.parse(req.body);
-    const { attributes, ...productData } = data;
+    const { attributes, images, variants, ...productData } = data;
 
     const existing = await prisma.product.findUnique({ where: { id } });
     if (!existing) throw new AppError('Product not found', 404);
 
     if (productData.basePrice && productData.salePrice) {
       (productData as any).discountPercent = Math.round(((productData.basePrice - productData.salePrice) / productData.basePrice) * 100);
+    }
+
+    if (data.status === 'PUBLISHED' && !existing.publishedAt) {
+      (productData as any).publishedAt = new Date();
     }
 
     const product = await prisma.product.update({
@@ -169,7 +269,33 @@ export const adminUpdateProduct = async (req: AuthRequest, res: Response, next: 
       }
     }
 
-    res.json({ success: true, message: 'Product updated', data: product });
+    if (images !== undefined) {
+      await prisma.productImage.deleteMany({ where: { productId: id } });
+      if (images.length > 0) {
+        await prisma.productImage.createMany({
+          data: images.map((img, i) => ({
+            productId: id,
+            url: img.url,
+            isPrimary: img.isPrimary ?? i === 0,
+            displayOrder: img.displayOrder ?? i,
+            alt: img.alt || product.name,
+          })),
+        });
+      }
+    }
+
+    if (variants !== undefined) {
+      for (const v of variants) {
+        if (v.id) {
+          await prisma.productVariant.update({ where: { id: v.id }, data: { size: v.size, color: v.color, colorHex: v.colorHex, sku: v.sku, barcode: v.barcode, price: v.price, stock: v.stock, weight: v.weight, isActive: v.isActive } });
+        } else {
+          await prisma.productVariant.create({ data: { productId: id, size: v.size, color: v.color, colorHex: v.colorHex, sku: v.sku, barcode: v.barcode, price: v.price, stock: v.stock, weight: v.weight } });
+        }
+      }
+    }
+
+    const updated = await prisma.product.findUnique({ where: { id }, include: { category: true, images: true, variants: true } });
+    res.json({ success: true, message: 'Product updated', data: updated });
   } catch (error) {
     next(error);
   }

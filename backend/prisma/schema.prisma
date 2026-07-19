@@ -105,6 +105,9 @@ model Product {
   slug            String        @unique
   description     String
   shortDescription String?
+  tags            String        @default("")
+  adminNotes      String?
+  status          String        @default("PUBLISHED")
   categoryId      String
   brandId         String?
   gender          String?
@@ -115,6 +118,10 @@ model Product {
   sku             String        @unique
   barcode         String?
   weight          Float?
+  length          Float?
+  width           Float?
+  height          Float?
+  shippingClass   String?
   isActive        Boolean       @default(true)
   isFeatured      Boolean       @default(false)
   isNewArrival    Boolean       @default(false)
@@ -128,6 +135,18 @@ model Product {
   metaTitle       String?
   metaDescription String?
   metaKeywords    String?
+  canonicalUrl    String?
+  ogImage         String?
+  returnAvailable Boolean       @default(true)
+  returnPeriod    Int           @default(30)
+  exchangeAvailable Boolean     @default(true)
+  warrantyPeriod  String?
+  couponEligible  Boolean       @default(true)
+  flashSale       Boolean       @default(false)
+  bogo            Boolean       @default(false)
+  festivalOffer   Boolean       @default(false)
+  specialDiscount Float?
+  publishedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -148,6 +167,7 @@ model Product {
   @@index([categoryId])
   @@index([brandId])
   @@index([isActive])
+  @@index([status])
   @@index([isFeatured])
   @@index([isNewArrival])
   @@index([isBestSeller])
@@ -165,10 +185,12 @@ model ProductVariant {
   color       String?
   colorHex    String?
   sku         String   @unique
+  barcode     String?
   price       Float?
   stock         Int      @default(0)
   lockedStock   Int      @default(0)
   lockExpiry    DateTime?
+  weight      Float?
   isActive      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
