@@ -79,3 +79,69 @@ export function validateEmail(email: string): boolean {
 export function validatePhone(phone: string): boolean {
   return /^[6-9]\d{9}$/.test(phone);
 }
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  [key: string]: any;
+}
+
+export interface CategoryOption extends CategoryItem {
+  displayName: string;
+  level: number;
+}
+
+export function buildCategoryOptions(categories: CategoryItem[]): CategoryOption[] {
+  const parentMap = new Map<string, CategoryItem[]>();
+  const roots: CategoryItem[] = [];
+
+  for (const cat of categories) {
+    if (cat.parentId) {
+      if (!parentMap.has(cat.parentId)) parentMap.set(cat.parentId, []);
+      parentMap.get(cat.parentId)!.push(cat);
+    } else {
+      roots.push(cat);
+    }
+  }
+
+  const result: CategoryOption[] = [];
+  const traverse = (items: CategoryItem[], level: number) => {
+    for (const item of items) {
+      result.push({
+        ...item,
+        displayName: level > 0 ? `${'─'.repeat(level)} ${item.name}` : item.name,
+        level,
+      });
+      const children = parentMap.get(item.id);
+      if (children) traverse(children, level + 1);
+    }
+  };
+  traverse(roots, 0);
+  return result;
+}
+
+const CLOTHING_PARENT_NAMES = ['Men', 'Women', 'Kids'];
+
+export function isClothingCategory(categories: CategoryItem[], categoryId: string): boolean {
+  const cat = categories.find((c) => c.id === categoryId);
+  if (!cat) return false;
+  if (CLOTHING_PARENT_NAMES.includes(cat.name)) return true;
+  if (cat.parentId) {
+    const parent = categories.find((c) => c.id === cat.parentId);
+    if (parent && CLOTHING_PARENT_NAMES.includes(parent.name)) return true;
+  }
+  return false;
+}
+
+export function isBabyCategory(categories: CategoryItem[], categoryId: string): boolean {
+  const cat = categories.find((c) => c.id === categoryId);
+  if (!cat) return false;
+  if (cat.name === 'Baby') return true;
+  if (cat.parentId) {
+    const parent = categories.find((c) => c.id === cat.parentId);
+    if (parent && parent.name === 'Baby') return true;
+  }
+  return false;
+}

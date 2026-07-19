@@ -103,6 +103,31 @@ export const getProductBySlug = async (req: AuthRequest, res: Response, next: Ne
     const colors = [...new Set(p.variants.filter((v: any) => v.color).map((v: any) => JSON.stringify({ color: v.color, colorHex: v.colorHex })))].map((c) => JSON.parse(c as string));
     const totalStock = p.variants.reduce((sum: number, v: any) => sum + v.stock, 0);
 
+    let relatedProducts = p.relatedProducts.map((rp: any) => ({
+      ...rp.related,
+      primaryImage: rp.related.images[0]?.url || null,
+    }));
+
+    if (relatedProducts.length === 0) {
+      const categoryProducts = await prisma.product.findMany({
+        where: {
+          categoryId: p.categoryId,
+          isActive: true,
+          id: { not: p.id },
+        },
+        include: {
+          images: { orderBy: { displayOrder: 'asc' }, take: 1 },
+          category: { select: { id: true, name: true } },
+        },
+        take: 4,
+        orderBy: { createdAt: 'desc' },
+      });
+      relatedProducts = categoryProducts.map((cp: any) => ({
+        ...cp,
+        primaryImage: cp.images[0]?.url || null,
+      }));
+    }
+
     res.json({
       success: true,
       data: {
@@ -127,10 +152,7 @@ export const getProductBySlug = async (req: AuthRequest, res: Response, next: Ne
             group: av.attribute.group,
           },
         })) || [],
-        relatedProducts: p.relatedProducts.map((rp: any) => ({
-          ...rp.related,
-          primaryImage: rp.related.images[0]?.url || null,
-        })),
+        relatedProducts,
       },
     });
   } catch (error) {

@@ -78,6 +78,43 @@ async function main() {
     });
   }
 
+  // Sub-categories (Kids)
+  const kidsSubs = ['T-Shirts', 'Shirts', 'Jeans', 'Dresses', 'Trousers', 'Activewear', 'Traditional', 'Nightwear'];
+  for (const name of kidsSubs) {
+    await prisma.category.upsert({
+      where: { slug: `kids-${name.toLowerCase().replace(/\s+/g, '-')}` },
+      update: {},
+      create: { name, slug: `kids-${name.toLowerCase().replace(/\s+/g, '-')}`, parentId: kidsCat.id, gender: 'KIDS', displayOrder: kidsSubs.indexOf(name) + 1 },
+    });
+  }
+
+  // Sub-categories (Accessories)
+  const accSubs = ['Bags', 'Belts', 'Watches', 'Sunglasses', 'Hats', 'Scarves', 'Jewellery', 'Wallets'];
+  for (const name of accSubs) {
+    await prisma.category.upsert({
+      where: { slug: `accessories-${name.toLowerCase().replace(/\s+/g, '-')}` },
+      update: {},
+      create: { name, slug: `accessories-${name.toLowerCase().replace(/\s+/g, '-')}`, parentId: accessoriesCat.id, gender: 'ACCESSORIES', displayOrder: accSubs.indexOf(name) + 1 },
+    });
+  }
+
+  // Baby category
+  const babyCat = await prisma.category.upsert({
+    where: { slug: 'baby' },
+    update: {},
+    create: { name: 'Baby', slug: 'baby', gender: 'KIDS', displayOrder: 5, description: 'Baby & infant collection' },
+  });
+
+  // Sub-categories (Baby)
+  const babySubs = ['Bodysuits', 'Diapers', 'Baby Clothing', 'Baby Accessories', 'Footwear', 'Outerwear'];
+  for (const name of babySubs) {
+    await prisma.category.upsert({
+      where: { slug: `baby-${name.toLowerCase().replace(/\s+/g, '-')}` },
+      update: {},
+      create: { name, slug: `baby-${name.toLowerCase().replace(/\s+/g, '-')}`, parentId: babyCat.id, gender: 'KIDS', displayOrder: babySubs.indexOf(name) + 1 },
+    });
+  }
+
   // Brands
   const brandNames = ['Premium Wear', 'Urban Style', 'Classic Threads', 'Modern Fit', 'Elite Collection', 'Street Vogue'];
   for (const name of brandNames) {

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { parseAttributeOptions, type Attribute } from '@/types';
+import { buildCategoryOptions, isClothingCategory, isBabyCategory, type CategoryItem } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 function slugify(text: string) {
@@ -19,6 +20,7 @@ export default function AdminCreateProductPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [imageUrl, setImageUrl] = useState('');
+  const [bulkUrls, setBulkUrls] = useState('');
   const [form, setForm] = useState({
     name: '', description: '', slug: '', sku: '', hsnCode: '',
     basePrice: '', salePrice: '', costPrice: '',
@@ -100,6 +102,10 @@ export default function AdminCreateProductPage() {
     return groups;
   }, [attributes]);
 
+  const categoryOptions = useMemo(() => buildCategoryOptions(categories as CategoryItem[]), [categories]);
+  const showFabricSection = isClothingCategory(categories as CategoryItem[], form.categoryId);
+  const showBabyFields = isBabyCategory(categories as CategoryItem[], form.categoryId);
+
   const set = (field: string, value: any) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleNameChange = (name: string) => {
@@ -114,6 +120,17 @@ export default function AdminCreateProductPage() {
       setImages([...images, imageUrl.trim()]);
       setImageUrl('');
     }
+  };
+
+  const addBulkImages = () => {
+    const urls = bulkUrls.split('\n').map((u) => u.trim()).filter((u) => u && u.startsWith('http') && !images.includes(u));
+    if (urls.length === 0) {
+      toast.error('No valid URLs found');
+      return;
+    }
+    setImages([...images, ...urls]);
+    setBulkUrls('');
+    toast.success(`${urls.length} image(s) added`);
   };
 
   const removeImage = (idx: number) => setImages(images.filter((_, i) => i !== idx));
@@ -247,8 +264,8 @@ export default function AdminCreateProductPage() {
               <label className={labelClass}>Category *</label>
               <select value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} className={inputClass} required>
                 <option value="">Select Category</option>
-                {categories.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                {categoryOptions.map((c) => (
+                  <option key={c.id} value={c.id}>{c.displayName}</option>
                 ))}
               </select>
             </div>
@@ -275,31 +292,38 @@ export default function AdminCreateProductPage() {
           </div>
         </div>
 
-        {/* Fabric & Material */}
-        <div className="bg-white border p-6">
-          <h2 className="text-lg font-semibold mb-4">Fabric & Material</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className={labelClass}>Fabric</label>
-              <input type="text" value={form.fabric} onChange={(e) => set('fabric', e.target.value)} placeholder="e.g. Cotton, Silk" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Material</label>
-              <input type="text" value={form.material} onChange={(e) => set('material', e.target.value)} placeholder="e.g. Pure Cotton" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Wash Care</label>
-              <input type="text" value={form.washCare} onChange={(e) => set('washCare', e.target.value)} placeholder="e.g. Hand wash cold" className={inputClass} />
+        {/* Fabric & Material - Only for clothing categories */}
+        {showFabricSection && (
+          <div className="bg-white border p-6">
+            <h2 className="text-lg font-semibold mb-4">Fabric & Material</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className={labelClass}>Fabric</label>
+                <input type="text" value={form.fabric} onChange={(e) => set('fabric', e.target.value)} placeholder="e.g. Cotton, Silk" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Material</label>
+                <input type="text" value={form.material} onChange={(e) => set('material', e.target.value)} placeholder="e.g. Pure Cotton" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Wash Care</label>
+                <input type="text" value={form.washCare} onChange={(e) => set('washCare', e.target.value)} placeholder="e.g. Hand wash cold" className={inputClass} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Images */}
         <div className="bg-white border p-6">
           <h2 className="text-lg font-semibold mb-4">Images</h2>
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-3">
             <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL" className={inputClass} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())} />
             <Button type="button" variant="outline" size="sm" onClick={addImage}>Add</Button>
+          </div>
+          <div className="mb-4">
+            <label className={labelClass}>Bulk URLs (one per line)</label>
+            <textarea value={bulkUrls} onChange={(e) => setBulkUrls(e.target.value)} className={inputClass} rows={3} placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" />
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addBulkImages}>Add Bulk URLs</Button>
           </div>
           {images.length > 0 && (
             <div className="flex flex-wrap gap-3">
@@ -315,6 +339,7 @@ export default function AdminCreateProductPage() {
             </div>
           )}
           {images.length === 0 && <p className="text-sm text-gray-400">No images added yet.</p>}
+          {images.length > 0 && <p className="text-sm text-gray-500 mt-2">{images.length} image(s) added</p>}
         </div>
 
         {/* Status Toggles */}
