@@ -357,6 +357,29 @@ class ApiClient {
   async updateEmployee(id: string, data: any) { return this.request(`/admin/employees/${id}`, { method: 'PUT', body: data }); }
   async deleteEmployee(id: string) { return this.request(`/admin/employees/${id}`, { method: 'DELETE' }); }
 
+  // Attributes
+  async getAttributeGroups() { return this.request('/attributes/groups'); }
+  async createAttributeGroup(data: any) { return this.request('/attributes/groups', { method: 'POST', body: data }); }
+  async updateAttributeGroup(id: string, data: any) { return this.request(`/attributes/groups/${id}`, { method: 'PUT', body: data }); }
+  async deleteAttributeGroup(id: string) { return this.request(`/attributes/groups/${id}`, { method: 'DELETE' }); }
+
+  async getAttributes(groupId?: string) {
+    const query = groupId ? `?groupId=${groupId}` : '';
+    return this.request(`/attributes${query}`);
+  }
+  async createAttribute(data: any) { return this.request('/attributes', { method: 'POST', body: data }); }
+  async updateAttribute(id: string, data: any) { return this.request(`/attributes/${id}`, { method: 'PUT', body: data }); }
+  async deleteAttribute(id: string) { return this.request(`/attributes/${id}`, { method: 'DELETE' }); }
+
+  async getSubcategoryAttributes(subcategoryId: string) { return this.request(`/attributes/subcategory/${subcategoryId}`); }
+  async getAllSubcategoryAttributes() { return this.request('/attributes/subcategory-all'); }
+  async setSubcategoryAttributes(subcategoryId: string, attributes: any[]) { return this.request(`/attributes/subcategory/${subcategoryId}`, { method: 'PUT', body: { attributes } }); }
+
+  async getProductAttributes(productId: string) { return this.request(`/attributes/product/${productId}`); }
+  async setProductAttributes(productId: string, attributes: any[]) { return this.request(`/attributes/product/${productId}`, { method: 'PUT', body: { attributes } }); }
+
+  async getSubcategoryAttributesPublic(subcategoryId: string) { return this.request(`/attributes/public/subcategory/${subcategoryId}`); }
+
   async getAdminDashboardStats() { return this.request('/admin/dashboard/stats'); }
   async getAdminSalesReport(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';

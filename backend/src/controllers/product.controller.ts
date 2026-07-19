@@ -88,6 +88,7 @@ export const getProductBySlug = async (req: AuthRequest, res: Response, next: Ne
           },
         },
         _count: { select: { wishlistItems: true } },
+        attributeValues: { include: { attribute: { include: { group: { select: { id: true, name: true, slug: true } } } } } },
       },
     });
 
@@ -114,6 +115,18 @@ export const getProductBySlug = async (req: AuthRequest, res: Response, next: Ne
         availableVariants: p.variants,
         totalStock,
         inStock: totalStock > 0,
+        attributeValues: p.attributeValues?.map((av: any) => ({
+          id: av.id,
+          attributeId: av.attributeId,
+          value: av.value,
+          attribute: {
+            id: av.attribute.id,
+            name: av.attribute.name,
+            slug: av.attribute.slug,
+            fieldType: av.attribute.fieldType,
+            group: av.attribute.group,
+          },
+        })) || [],
         relatedProducts: p.relatedProducts.map((rp: any) => ({
           ...rp.related,
           primaryImage: rp.related.images[0]?.url || null,

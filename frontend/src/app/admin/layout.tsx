@@ -31,6 +31,7 @@ const sidebarLinks: SidebarLink[] = [
   { label: 'Coupons', href: '/admin/coupons', icon: <Tag size={18} />, permission: 'coupons.manage' },
   { label: 'Reviews', href: '/admin/reviews', icon: <Star size={18} />, permission: 'reviews.manage' },
   { label: 'Blog', href: '/admin/blog', icon: <FileText size={18} />, permission: 'blog.manage' },
+  { label: 'Attributes', href: '/admin/attributes', icon: <Shield size={18} />, permission: 'products.manage' },
   { label: 'Newsletter', href: '/admin/newsletter', icon: <Mail size={18} /> },
   { label: 'FAQ', href: '/admin/faq', icon: <HelpCircle size={18} />, permission: 'faq.manage' },
   { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 size={18} />, permission: 'analytics.view' },

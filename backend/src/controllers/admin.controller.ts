@@ -97,15 +97,23 @@ export const adminCreateProduct = async (req: AuthRequest, res: Response, next: 
       metaTitle: z.string().optional(),
       metaDescription: z.string().optional(),
       metaKeywords: z.string().optional(),
+      attributes: z.array(z.object({ attributeId: z.string(), value: z.string() })).optional(),
     });
     const data = schema.parse(req.body);
+    const { attributes, ...productData } = data;
 
     const slug = generateSlug(data.name) + '-' + Date.now().toString(36);
 
     const product = await prisma.product.create({
-      data: { ...data, slug, discountPercent: data.salePrice ? Math.round(((data.basePrice - data.salePrice) / data.basePrice) * 100) : null },
+      data: { ...productData, slug, discountPercent: data.salePrice ? Math.round(((data.basePrice - data.salePrice) / data.basePrice) * 100) : null },
       include: { category: true, images: true, variants: true },
     });
+
+    if (attributes && attributes.length > 0) {
+      await prisma.productAttributeValue.createMany({
+        data: attributes.map((a) => ({ productId: product.id, attributeId: a.attributeId, value: a.value })),
+      });
+    }
 
     res.status(201).json({ success: true, message: 'Product created', data: product });
   } catch (error) {
@@ -134,21 +142,32 @@ export const adminUpdateProduct = async (req: AuthRequest, res: Response, next: 
       metaTitle: z.string().optional(),
       metaDescription: z.string().optional(),
       metaKeywords: z.string().optional(),
+      attributes: z.array(z.object({ attributeId: z.string(), value: z.string() })).optional(),
     });
     const data = schema.parse(req.body);
+    const { attributes, ...productData } = data;
 
     const existing = await prisma.product.findUnique({ where: { id } });
     if (!existing) throw new AppError('Product not found', 404);
 
-    if (data.basePrice && data.salePrice) {
-      (data as any).discountPercent = Math.round(((data.basePrice - data.salePrice) / data.basePrice) * 100);
+    if (productData.basePrice && productData.salePrice) {
+      (productData as any).discountPercent = Math.round(((productData.basePrice - productData.salePrice) / productData.basePrice) * 100);
     }
 
     const product = await prisma.product.update({
       where: { id },
-      data,
+      data: productData,
       include: { category: true, images: true, variants: true },
     });
+
+    if (attributes !== undefined) {
+      await prisma.productAttributeValue.deleteMany({ where: { productId: id } });
+      if (attributes.length > 0) {
+        await prisma.productAttributeValue.createMany({
+          data: attributes.map((a) => ({ productId: id, attributeId: a.attributeId, value: a.value })),
+        });
+      }
+    }
 
     res.json({ success: true, message: 'Product updated', data: product });
   } catch (error) {

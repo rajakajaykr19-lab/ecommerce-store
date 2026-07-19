@@ -75,6 +75,7 @@ model Category {
   children        Category[] @relation("CategoryHierarchy")
   products        Product[]
   banners         Banner[]
+  subcategoryAttributes SubcategoryAttribute[]
 
   @@index([slug])
   @@index([parentId])
@@ -140,6 +141,7 @@ model Product {
   orderItems      OrderItem[]
   relatedProducts RelatedProduct[] @relation("RelatedProductSource")
   relatedTo       RelatedProduct[] @relation("RelatedProductTarget")
+  attributeValues ProductAttributeValue[]
 
   @@index([slug])
   @@index([categoryId])
@@ -541,4 +543,77 @@ model Order {
   @@index([status])
   @@index([paymentStatus])
   @@index([createdAt])
+}
+
+model AttributeGroup {
+  id              String      @id @default(uuid())
+  name            String      @unique
+  slug            String      @unique
+  description     String?
+  displayOrder    Int         @default(0)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  attributes      Attribute[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model Attribute {
+  id              String      @id @default(uuid())
+  groupId         String
+  name            String
+  slug            String      @unique
+  fieldType       String      @default("text")
+  options         String      @default("[]")
+  required        Boolean     @default(false)
+  filterable      Boolean     @default(false)
+  searchable      Boolean     @default(false)
+  displayOrder    Int         @default(0)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  group           AttributeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subcategoryMaps SubcategoryAttribute[]
+  productValues   ProductAttributeValue[]
+
+  @@index([groupId])
+  @@index([slug])
+  @@index([isActive])
+  @@index([filterable])
+}
+
+model SubcategoryAttribute {
+  id              String      @id @default(uuid())
+  subcategoryId   String
+  attributeId     String
+  required        Boolean     @default(false)
+  displayOrder    Int         @default(0)
+  createdAt       DateTime    @default(now())
+
+  subcategory     Category    @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  attribute       Attribute   @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([subcategoryId, attributeId])
+  @@index([subcategoryId])
+  @@index([attributeId])
+}
+
+model ProductAttributeValue {
+  id              String      @id @default(uuid())
+  productId       String
+  attributeId     String
+  value           String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute       Attribute   @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeId])
+  @@index([productId])
+  @@index([attributeId])
 }

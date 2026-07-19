@@ -147,3 +147,37 @@ export interface Pagination {
 export interface ApiResponse<T = any> {
   success: boolean; message?: string; data?: T; pagination?: Pagination; error?: string;
 }
+
+// ============ ATTRIBUTE SYSTEM ============
+export interface AttributeGroup {
+  id: string; name: string; slug: string; description?: string;
+  displayOrder: number; isActive: boolean; createdAt: string;
+  _count?: { attributes: number };
+}
+
+export interface Attribute {
+  id: string; groupId: string; name: string; slug: string;
+  fieldType: 'text' | 'textarea' | 'select' | 'multiselect' | 'number' | 'boolean';
+  options: string; required: boolean; filterable: boolean; searchable: boolean;
+  displayOrder: number; isActive: boolean; createdAt: string;
+  group?: { id: string; name: string };
+}
+
+export interface SubcategoryAttribute {
+  id: string; subcategoryId: string; attributeId: string;
+  required: boolean; displayOrder: number;
+  attribute: Attribute & { group?: { id: string; name: string; slug?: string } };
+  subcategory?: { id: string; name: string; slug: string };
+}
+
+export interface ProductAttributeValue {
+  id: string; productId: string; attributeId: string; value: string;
+  attribute: {
+    id: string; name: string; slug: string; fieldType: string;
+    group?: { id: string; name: string; slug: string };
+  };
+}
+
+export function parseAttributeOptions(options: string): string[] {
+  try { return JSON.parse(options); } catch { return []; }
+}

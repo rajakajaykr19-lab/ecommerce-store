@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Plus, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { parseAttributeOptions, type Attribute } from '@/types';
 import toast from 'react-hot-toast';
 
 function slugify(text: string) {
@@ -27,6 +28,12 @@ export default function AdminCreateProductPage() {
     isActive: true, isFeatured: false, isNewArrival: false, isBestSeller: false, isTrending: false,
   });
   const [images, setImages] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [subcategoryId, setSubcategoryId] = useState('');
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
+  const [loadingAttributes, setLoadingAttributes] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     Promise.all([
@@ -37,6 +44,61 @@ export default function AdminCreateProductPage() {
       setBrands(brandRes.data || []);
     });
   }, []);
+
+  useEffect(() => {
+    if (!form.categoryId) {
+      setSubcategories([]);
+      setSubcategoryId('');
+      setAttributes([]);
+      setAttributeValues({});
+      return;
+    }
+    const children = categories.filter((c: any) => c.parentId === form.categoryId);
+    setSubcategories(children);
+    if (children.length > 0) {
+      setSubcategoryId('');
+      setAttributes([]);
+      setAttributeValues({});
+    } else {
+      const selected = categories.find((c: any) => c.id === form.categoryId);
+      if (selected?.parentId) {
+        setSubcategoryId(form.categoryId);
+      } else {
+        setSubcategoryId('');
+        setAttributes([]);
+        setAttributeValues({});
+      }
+    }
+  }, [form.categoryId, categories]);
+
+  useEffect(() => {
+    if (!subcategoryId) {
+      setAttributes([]);
+      setAttributeValues({});
+      return;
+    }
+    setLoadingAttributes(true);
+    api.getSubcategoryAttributesPublic(subcategoryId)
+      .then((res: any) => {
+        const attrs: Attribute[] = res.data || [];
+        setAttributes(attrs);
+        const vals: Record<string, string> = {};
+        attrs.forEach((a) => { vals[a.id] = ''; });
+        setAttributeValues(vals);
+      })
+      .catch(() => { setAttributes([]); setAttributeValues({}); })
+      .finally(() => setLoadingAttributes(false));
+  }, [subcategoryId]);
+
+  const groupedAttributes = useMemo(() => {
+    const groups: Record<string, Attribute[]> = {};
+    attributes.forEach((attr) => {
+      const name = attr.group?.name || 'Other';
+      if (!groups[name]) groups[name] = [];
+      groups[name].push(attr);
+    });
+    return groups;
+  }, [attributes]);
 
   const set = (field: string, value: any) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -66,6 +128,7 @@ export default function AdminCreateProductPage() {
     try {
       const payload = {
         ...form,
+        categoryId: subcategoryId || form.categoryId,
         basePrice: parseFloat(form.basePrice),
         salePrice: form.salePrice ? parseFloat(form.salePrice) : undefined,
         costPrice: form.costPrice ? parseFloat(form.costPrice) : undefined,
@@ -75,6 +138,9 @@ export default function AdminCreateProductPage() {
         gstRate: parseFloat(form.gstRate),
         lockExpiry: form.lockExpiry || undefined,
         images: images.map((url, i) => ({ url, isPrimary: i === 0, displayOrder: i })),
+        attributes: Object.entries(attributeValues)
+          .filter(([, v]) => v.trim() !== '')
+          .map(([attributeId, value]) => ({ attributeId, value })),
       };
       await api.createProduct(payload);
       toast.success('Product created');
@@ -195,6 +261,17 @@ export default function AdminCreateProductPage() {
                 ))}
               </select>
             </div>
+            {subcategories.length > 0 && (
+              <div className="md:col-span-2">
+                <label className={labelClass}>Subcategory (for Attributes)</label>
+                <select value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)} className={inputClass}>
+                  <option value="">Select Subcategory</option>
+                  {subcategories.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -257,6 +334,120 @@ export default function AdminCreateProductPage() {
               </label>
             ))}
           </div>
+        </div>
+
+        {/* Product Attributes */}
+        <div className="bg-white border p-6">
+          <h2 className="text-lg font-semibold mb-4">Product Attributes</h2>
+          {loadingAttributes ? (
+            <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+              <Loader2 className="animate-spin" size={16} /> Loading attributes...
+            </div>
+          ) : !subcategoryId ? (
+            <p className="text-sm text-gray-400 py-4">Select a subcategory to see available attributes</p>
+          ) : attributes.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4">No attributes defined for this subcategory</p>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(groupedAttributes).map(([groupName, attrs]) => (
+                <div key={groupName} className="border rounded">
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }))}
+                    className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
+                    <span>{groupName}</span>
+                    {collapsedGroups[groupName] ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  {!collapsedGroups[groupName] && (
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {attrs.sort((a, b) => a.displayOrder - b.displayOrder).map((attr) => (
+                        <div key={attr.id}>
+                          <label className={labelClass}>
+                            {attr.name}
+                            {attr.required && <span className="text-red-500 ml-0.5">*</span>}
+                          </label>
+                          {attr.fieldType === 'text' && (
+                            <input
+                              type="text"
+                              value={attributeValues[attr.id] || ''}
+                              onChange={(e) => setAttributeValues((prev) => ({ ...prev, [attr.id]: e.target.value }))}
+                              className={inputClass}
+                              required={attr.required}
+                            />
+                          )}
+                          {attr.fieldType === 'textarea' && (
+                            <textarea
+                              value={attributeValues[attr.id] || ''}
+                              onChange={(e) => setAttributeValues((prev) => ({ ...prev, [attr.id]: e.target.value }))}
+                              className={inputClass}
+                              rows={3}
+                              required={attr.required}
+                            />
+                          )}
+                          {attr.fieldType === 'number' && (
+                            <input
+                              type="number"
+                              value={attributeValues[attr.id] || ''}
+                              onChange={(e) => setAttributeValues((prev) => ({ ...prev, [attr.id]: e.target.value }))}
+                              className={inputClass}
+                              required={attr.required}
+                            />
+                          )}
+                          {attr.fieldType === 'select' && (
+                            <select
+                              value={attributeValues[attr.id] || ''}
+                              onChange={(e) => setAttributeValues((prev) => ({ ...prev, [attr.id]: e.target.value }))}
+                              className={inputClass}
+                              required={attr.required}
+                            >
+                              <option value="">Select {attr.name}</option>
+                              {parseAttributeOptions(attr.options).map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          )}
+                          {attr.fieldType === 'multiselect' && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {parseAttributeOptions(attr.options).map((opt) => {
+                                const selected = (attributeValues[attr.id] || '').split(',').filter(Boolean).includes(opt);
+                                return (
+                                  <label key={opt} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      onChange={() => {
+                                        const current = (attributeValues[attr.id] || '').split(',').filter(Boolean);
+                                        const next = selected ? current.filter((v) => v !== opt) : [...current, opt];
+                                        setAttributeValues((prev) => ({ ...prev, [attr.id]: next.join(',') }));
+                                      }}
+                                      className="w-3.5 h-3.5"
+                                    />
+                                    {opt}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {attr.fieldType === 'boolean' && (
+                            <label className="flex items-center gap-2 text-sm cursor-pointer mt-1">
+                              <input
+                                type="checkbox"
+                                checked={attributeValues[attr.id] === 'true'}
+                                onChange={(e) => setAttributeValues((prev) => ({ ...prev, [attr.id]: e.target.checked ? 'true' : 'false' }))}
+                                className="w-4 h-4"
+                              />
+                              Yes
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3">

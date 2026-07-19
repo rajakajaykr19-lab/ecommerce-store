@@ -11,6 +11,7 @@ import adminRoutes from './admin.routes';
 import publicRoutes from './public.routes';
 import invoiceRoutes from './invoice.routes';
 import inventoryRoutes from './inventory.routes';
+import attributeRoutes from './attribute.routes';
 import { seedDatabase } from '../controllers/seed.controller';
 
 const router = Router();
@@ -26,6 +27,7 @@ router.use('/payments', paymentRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/inventory', inventoryRoutes);
+router.use('/attributes', attributeRoutes);
 router.use('/admin', adminRoutes);
 router.use('/', publicRoutes);
 

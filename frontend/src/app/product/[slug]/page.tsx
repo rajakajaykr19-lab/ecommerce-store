@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -88,6 +88,16 @@ export default function ProductDetailPage() {
 
   const images = product.images?.length ? product.images : [{ id: '0', url: product.primaryImage || '', isPrimary: true, displayOrder: 0 }];
   const hasDiscount = product.salePrice && product.salePrice < product.basePrice;
+  const attributeValues: { id: string; attributeId: string; value: string; attribute: { id: string; name: string; slug: string; fieldType: string; group?: { id: string; name: string; slug: string } } }[] = (product as any).attributeValues || [];
+  const specGroups = useMemo(() => {
+    const groups: Record<string, typeof attributeValues> = {};
+    attributeValues.filter((av) => av.value && av.value.trim() !== '').forEach((av) => {
+      const name = av.attribute.group?.name || 'Details';
+      if (!groups[name]) groups[name] = [];
+      groups[name].push(av);
+    });
+    return groups;
+  }, [attributeValues]);
 
   return (
     <div className="container-custom py-8">
@@ -283,6 +293,30 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Specifications */}
+      {Object.keys(specGroups).length > 0 && (
+        <div className="mt-12">
+          <div className="bg-white border p-6">
+            <h2 className="text-lg font-semibold mb-4 pb-3 border-b">Specifications</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Object.entries(specGroups).map(([groupName, attrs]) => (
+                <div key={groupName}>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-1 border-b border-gray-100">{groupName}</h3>
+                  <div className="space-y-2">
+                    {attrs.map((av) => (
+                      <div key={av.id} className="flex justify-between text-sm">
+                        <span className="text-gray-500">{av.attribute.name}</span>
+                        <span className="text-gray-900 font-medium">{av.attribute.fieldType === 'boolean' ? (av.value === 'true' ? 'Yes' : 'No') : av.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reviews */}
       {product.reviews && product.reviews.length > 0 && (
