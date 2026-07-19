@@ -85,7 +85,7 @@ export default function AdminProductsPage() {
                         {p.primaryImage && <img src={p.primaryImage} alt="" className="w-full h-full object-cover" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium truncate max-w-[200px]">{p.name}</p>
+                      <Link href={`/admin/products/${p.id}`} className="font-medium truncate max-w-[200px] hover:text-[#1a1a2e] hover:underline">{p.name}</Link>
                         <p className="text-xs text-gray-500">SKU: {p.sku}</p>
                       </div>
                     </div>
@@ -108,7 +108,7 @@ export default function AdminProductsPage() {
                   <td className="p-4 text-xs text-gray-500">{formatDate(p.createdAt)}</td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      <Link href={`/admin/products/${p.id}`} className="text-xs text-blue-600 hover:underline">Edit</Link>
+                      <Link href={`/admin/products/${p.id}/edit`} className="text-xs text-blue-600 hover:underline">Edit</Link>
                       <button onClick={() => handleDelete(p.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                     </div>
                   </td>
