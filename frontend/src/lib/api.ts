@@ -351,6 +351,12 @@ class ApiClient {
   async updateAdminUser(id: string, data: any) { return this.request(`/admin/users/${id}`, { method: 'PUT', body: data }); }
   async updateUserRole(id: string, data: any) { return this.request(`/admin/users/${id}/role`, { method: 'PUT', body: data }); }
 
+  // Employees
+  async getEmployees() { return this.request('/admin/employees'); }
+  async createEmployee(data: any) { return this.request('/admin/employees', { method: 'POST', body: data }); }
+  async updateEmployee(id: string, data: any) { return this.request(`/admin/employees/${id}`, { method: 'PUT', body: data }); }
+  async deleteEmployee(id: string) { return this.request(`/admin/employees/${id}`, { method: 'DELETE' }); }
+
   async getAdminDashboardStats() { return this.request('/admin/dashboard/stats'); }
   async getAdminSalesReport(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';

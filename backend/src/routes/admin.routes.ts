@@ -1,11 +1,27 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermission } from '../middleware/auth';
 import * as admin from '../controllers/admin.controller';
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize('ADMIN', 'SUPER_ADMIN', 'MANAGER'));
+router.use(authorizePermission(
+  'orders.manage', 'orders.view',
+  'products.manage', 'products.view',
+  'categories.manage', 'categories.view',
+  'coupons.manage', 'coupons.view',
+  'blog.manage', 'blog.view',
+  'analytics.view',
+  'customers.view',
+  'contact.view',
+  'faq.manage', 'faq.view',
+  'reviews.manage', 'reviews.view',
+  'banners.manage', 'banners.view',
+  'users.manage',
+  'settings.manage',
+  'backup.manage',
+  'newsletter.view',
+));
 
 // Dashboard
 router.get('/dashboard', admin.getDashboard);
@@ -82,9 +98,13 @@ router.delete('/faqs/:id', admin.deleteFAQ);
 // Analytics
 router.get('/analytics', admin.getAnalytics);
 
-// Users / Roles
+// Users / Roles / Employees
 router.get('/users', admin.getUsers);
 router.put('/users/:id/role', admin.updateUserRole);
+router.get('/employees', admin.getEmployees);
+router.post('/employees', admin.createEmployee);
+router.put('/employees/:id', admin.updateEmployee);
+router.delete('/employees/:id', admin.deleteEmployee);
 
 // Backup
 router.get('/backups', admin.getBackups);

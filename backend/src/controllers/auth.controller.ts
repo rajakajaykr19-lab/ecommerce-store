@@ -111,6 +111,7 @@ export const login = async (req: AuthRequest, res: Response, next: NextFunction)
         user: {
           id: user.id, name: user.name, email: user.email,
           phone: user.phone, role: user.role, avatar: user.avatar,
+          permissions: user.permissions,
         },
         ...tokens,
       },
@@ -126,7 +127,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
       where: { id: req.user!.userId },
       select: {
         id: true, name: true, email: true, phone: true, role: true,
-        avatar: true, isActive: true, createdAt: true, addresses: true,
+        avatar: true, isActive: true, createdAt: true, addresses: true, permissions: true,
       },
     });
     if (!user) throw new AppError('User not found', 404);

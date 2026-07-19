@@ -801,7 +801,7 @@ export const submitContact = async (req: AuthRequest, res: Response, next: NextF
 // ============ ROLES ============
 export const getUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true }, orderBy: { createdAt: 'desc' } });
+    const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, permissions: true, isActive: true, createdAt: true }, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: users });
   } catch (error) {
     next(error);
@@ -811,10 +811,129 @@ export const getUsers = async (req: AuthRequest, res: Response, next: NextFuncti
 export const updateUserRole = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const schema = z.object({ role: z.enum(['CUSTOMER', 'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'EDITOR']), isActive: z.boolean().optional() });
+    const schema = z.object({
+      role: z.enum(['CUSTOMER', 'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'EDITOR', 'EMPLOYEE']),
+      isActive: z.boolean().optional(),
+      permissions: z.string().optional(),
+    });
     const data = schema.parse(req.body);
-    const user = await prisma.user.update({ where: { id }, data, select: { id: true, name: true, email: true, role: true, isActive: true } });
+    const user = await prisma.user.update({ where: { id }, data, select: { id: true, name: true, email: true, role: true, permissions: true, isActive: true } });
     res.json({ success: true, message: 'User updated', data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============ EMPLOYEES ============
+const ALL_PERMISSIONS = [
+  'orders.manage', 'orders.view',
+  'products.manage', 'products.view',
+  'categories.manage', 'categories.view',
+  'coupons.manage', 'coupons.view',
+  'blog.manage', 'blog.view',
+  'analytics.view',
+  'customers.view',
+  'contact.view',
+  'faq.manage', 'faq.view',
+  'reviews.manage', 'reviews.view',
+  'banners.manage', 'banners.view',
+];
+
+export const getEmployees = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const employees = await prisma.user.findMany({
+      where: { role: 'EMPLOYEE' },
+      select: { id: true, name: true, email: true, phone: true, role: true, permissions: true, isActive: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: employees });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createEmployee = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(8),
+      phone: z.string().optional(),
+      permissions: z.array(z.string()).optional(),
+    });
+    const data = schema.parse(req.body);
+
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) {
+      throw new AppError('Email already registered', 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 12);
+    const employeePermissions = data.permissions || [];
+
+    const employee = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+        phone: data.phone,
+        role: 'EMPLOYEE',
+        permissions: JSON.stringify(employeePermissions),
+      },
+      select: { id: true, name: true, email: true, phone: true, role: true, permissions: true, isActive: true, createdAt: true },
+    });
+
+    res.status(201).json({ success: true, message: 'Employee created', data: employee });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateEmployee = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      phone: z.string().optional(),
+      permissions: z.array(z.string()).optional(),
+      isActive: z.boolean().optional(),
+      password: z.string().min(8).optional(),
+    });
+    const data = schema.parse(req.body);
+
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.permissions !== undefined) {
+      const validPermissions = data.permissions.filter((p) => ALL_PERMISSIONS.includes(p));
+      updateData.permissions = JSON.stringify(validPermissions);
+    }
+    if (data.password) {
+      updateData.password = await bcrypt.hash(data.password, 12);
+    }
+
+    const employee = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: { id: true, name: true, email: true, phone: true, role: true, permissions: true, isActive: true, createdAt: true },
+    });
+
+    res.json({ success: true, message: 'Employee updated', data: employee });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteEmployee = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const employee = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+    if (!employee || employee.role !== 'EMPLOYEE') {
+      throw new AppError('Employee not found', 404);
+    }
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true, message: 'Employee deleted' });
   } catch (error) {
     next(error);
   }

@@ -8,7 +8,7 @@ import { Loader2, Search, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
-const ROLES = ['ALL', 'CUSTOMER', 'ADMIN', 'MANAGER', 'SELLER'] as const;
+const ROLES = ['ALL', 'CUSTOMER', 'ADMIN', 'MANAGER', 'EMPLOYEE'] as const;
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -44,8 +44,9 @@ export default function AdminUsersPage() {
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
       ADMIN: 'bg-purple-50 text-purple-700',
+      SUPER_ADMIN: 'bg-purple-50 text-purple-700',
       MANAGER: 'bg-blue-50 text-blue-700',
-      SELLER: 'bg-orange-50 text-orange-700',
+      EMPLOYEE: 'bg-amber-50 text-amber-700',
       CUSTOMER: 'bg-gray-100 text-gray-700',
     };
     return styles[role] || 'bg-gray-100 text-gray-700';
@@ -113,7 +114,7 @@ export default function AdminUsersPage() {
                       onChange={(e) => handleRoleChange(u.id, e.target.value)}
                       className={`text-xs font-medium px-2 py-1 border-0 outline-none cursor-pointer ${getRoleBadge(u.role)}`}
                     >
-                      {['CUSTOMER', 'ADMIN', 'MANAGER', 'SELLER'].map(r => (
+                      {['CUSTOMER', 'ADMIN', 'MANAGER', 'EMPLOYEE'].map(r => (
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>

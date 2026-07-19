@@ -82,7 +82,7 @@ export default function AdminUserDetailPage() {
             </label>
             <div className="flex gap-2">
               <select value={role} onChange={(e) => setRole(e.target.value)} className="flex-1 border px-3 py-2 text-sm outline-none">
-                {['CUSTOMER', 'ADMIN', 'MANAGER', 'SELLER'].map(r => (
+                {['CUSTOMER', 'ADMIN', 'MANAGER', 'EMPLOYEE'].map(r => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>

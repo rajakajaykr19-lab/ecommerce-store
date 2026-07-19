@@ -1,6 +1,37 @@
 export interface User {
   id: string; name: string; email: string; phone?: string; role: string;
-  avatar?: string; isActive: boolean; createdAt: string;
+  permissions?: string; avatar?: string; isActive: boolean; createdAt: string;
+}
+
+export const ALL_PERMISSIONS = [
+  { key: 'orders.manage', label: 'Manage Orders', group: 'Orders' },
+  { key: 'orders.view', label: 'View Orders', group: 'Orders' },
+  { key: 'products.manage', label: 'Manage Products', group: 'Products' },
+  { key: 'products.view', label: 'View Products', group: 'Products' },
+  { key: 'categories.manage', label: 'Manage Categories', group: 'Categories' },
+  { key: 'categories.view', label: 'View Categories', group: 'Categories' },
+  { key: 'coupons.manage', label: 'Manage Coupons', group: 'Coupons' },
+  { key: 'coupons.view', label: 'View Coupons', group: 'Coupons' },
+  { key: 'blog.manage', label: 'Manage Blog', group: 'Blog' },
+  { key: 'blog.view', label: 'View Blog', group: 'Blog' },
+  { key: 'analytics.view', label: 'View Analytics', group: 'Analytics' },
+  { key: 'customers.view', label: 'View Customers', group: 'Customers' },
+  { key: 'contact.view', label: 'View Contact Messages', group: 'Contact' },
+  { key: 'faq.manage', label: 'Manage FAQ', group: 'FAQ' },
+  { key: 'faq.view', label: 'View FAQ', group: 'FAQ' },
+  { key: 'reviews.manage', label: 'Manage Reviews', group: 'Reviews' },
+  { key: 'reviews.view', label: 'View Reviews', group: 'Reviews' },
+  { key: 'banners.manage', label: 'Manage Banners', group: 'Banners' },
+  { key: 'banners.view', label: 'View Banners', group: 'Banners' },
+];
+
+export function parsePermissions(permissions?: string): string[] {
+  if (!permissions) return [];
+  try { return JSON.parse(permissions); } catch { return []; }
+}
+
+export function hasPermission(userPermissions: string[], required: string): boolean {
+  return userPermissions.includes(required);
 }
 
 export interface Address {

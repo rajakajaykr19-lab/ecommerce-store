@@ -15,6 +15,7 @@ model User {
   password              String
   avatar                String?
   role                  String    @default("CUSTOMER")
+  permissions           String    @default("[]")
   isActive              Boolean   @default(true)
   failedLoginAttempts   Int       @default(0)
   lockUntil             DateTime?
