@@ -7,13 +7,13 @@ async function main() {
   console.log('Seeding database...');
 
   // Admin user
-  const adminPassword = await bcrypt.hash('admin123', 12);
+  const adminPassword = await bcrypt.hash('@Kareena.com201522', 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@storename.com' },
+    where: { email: 'rajakajaykumar686@gmail.com' },
     update: {},
     create: {
-      name: 'Store Admin',
-      email: 'admin@storename.com',
+      name: 'Ajay Kumar',
+      email: 'rajakajaykumar686@gmail.com',
       password: adminPassword,
       role: 'SUPER_ADMIN',
       phone: '9876543210',

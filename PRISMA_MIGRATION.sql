@@ -22,7 +22,7 @@ npx prisma db seed
 ```
 
 This creates:
-- Admin user: admin@storename.com / admin123
+- Admin user: rajakajaykumar686@gmail.com / @Kareena.com201522
 - Customer user: customer@example.com / customer123
 - Categories: T-Shirts, Shirts, Pants, Dresses, Jackets
 - Brands: Premium Brand 1, Premium Brand 2

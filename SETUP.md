@@ -32,7 +32,7 @@ npm run dev
 - Admin Panel: http://localhost:3000/admin
 
 ### Default Credentials
-- Admin: admin@storename.com / admin123
+- Admin: rajakajaykumar686@gmail.com / @Kareena.com201522
 - Customer: customer@example.com / customer123
 
 ## Environment Variables

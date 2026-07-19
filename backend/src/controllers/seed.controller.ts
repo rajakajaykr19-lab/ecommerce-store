@@ -30,15 +30,15 @@ export const seedDatabase = async (req: Request, res: Response, next: NextFuncti
       const hashedPassword = await bcrypt.hash('@Kareena.com201522', 12);
       await prisma.user.update({
         where: { email: ownerEmail },
-        data: { role: 'ADMIN', password: hashedPassword },
+        data: { role: 'SUPER_ADMIN', password: hashedPassword },
       });
-      results.push('Owner account promoted to ADMIN');
+      results.push('Owner account promoted to SUPER_ADMIN');
     } else {
       const hashedPassword = await bcrypt.hash('@Kareena.com201522', 12);
       await prisma.user.create({
-        data: { name: 'Ajay Kumar', email: ownerEmail, password: hashedPassword, role: 'ADMIN', phone: '+919876543210' },
+        data: { name: 'Ajay Kumar', email: ownerEmail, password: hashedPassword, role: 'SUPER_ADMIN', phone: '+919876543210' },
       });
-      results.push('Owner admin account created');
+      results.push('Owner SUPER_ADMIN account created');
     }
 
     // Customer user

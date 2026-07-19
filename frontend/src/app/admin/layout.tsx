@@ -67,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             Login as Admin
           </Link>
           <p className="text-xs text-gray-400 mt-4">
-            Admin: admin@storename.com / admin123
+            rajakajaykumar686@gmail.com / @Kareena.com201522
           </p>
         </div>
       </div>

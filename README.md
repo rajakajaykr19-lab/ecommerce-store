@@ -108,7 +108,7 @@ npm run dev
 
 ## Default Credentials
 
-**Admin:** admin@storename.com / admin123
+**Admin:** rajakajaykumar686@gmail.com / @Kareena.com201522
 
 **Customer:** customer@example.com / customer123
 
