@@ -73,7 +73,8 @@ export default function AdminCategoryEditPage() {
   const loadCategory = async () => {
     setLoading(true);
     try {
-      const data = await api.getAdminCategory(categoryId);
+      const res = await api.getAdminCategory(categoryId);
+      const data = res.data || res;
       setCategoryData(data);
       setForm({
         name: data.name || '',
