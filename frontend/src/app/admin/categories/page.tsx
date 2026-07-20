@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -9,9 +9,8 @@ import toast from 'react-hot-toast';
 import {
   FolderTree, Plus, Search, ChevronDown, ChevronRight,
   MoreHorizontal, Edit, Trash2, Eye, EyeOff, Copy,
-  Package, Star, TrendingUp, X, ChevronUp,
-  Folder, Layers, ShoppingCart, DollarSign,
-  Calendar, AlertTriangle, CheckCircle2, Home, List,
+  Package, Star, X, Layers, Calendar, AlertTriangle,
+  CheckCircle2, RefreshCw,
 } from 'lucide-react';
 
 type SortField = 'name' | 'products' | 'createdAt' | 'displayOrder';
@@ -25,12 +24,11 @@ function useCountUp(target: number, duration = 600) {
   useEffect(() => {
     if (target === 0) { setValue(0); return; }
     const start = performance.now();
-    const from = 0;
     const animate = (now: number) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(from + (target - from) * eased));
+      setValue(Math.round(target * eased));
       if (progress < 1) ref.current = requestAnimationFrame(animate);
     };
     ref.current = requestAnimationFrame(animate);
@@ -38,6 +36,21 @@ function useCountUp(target: number, duration = 600) {
   }, [target, duration]);
 
   return value;
+}
+
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="w-10 h-10 rounded-lg bg-gray-200" />
+        <div className="h-7 w-12 bg-gray-200 rounded" />
+      </div>
+      <div className="mt-3">
+        <div className="h-4 w-24 bg-gray-200 rounded" />
+        <div className="h-3 w-32 bg-gray-100 rounded mt-1.5" />
+      </div>
+    </div>
+  );
 }
 
 export default function AdminCategoriesPage() {
@@ -57,23 +70,33 @@ export default function AdminCategoriesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [cardFilter, setCardFilter] = useState<CardFilter>('all');
 
-  useEffect(() => { loadData(); }, []);
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await api.getCategoryDashboardStats();
+      setStats(res.data || res);
+    } catch {
+      // stats will stay null
+    }
+    setStatsLoading(false);
+  }, []);
 
-  const loadData = async () => {
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await api.getAdminCategories({ limit: '200' });
+      setCategories(res.data || res || []);
+    } catch {
+      toast.error('Failed to load categories');
+    }
+  }, []);
+
+  const loadData = useCallback(async () => {
     setLoading(true);
     setStatsLoading(true);
-    try {
-      const [catsRes, statsRes] = await Promise.allSettled([
-        api.getAdminCategories({ limit: '200' }),
-        api.getCategoryDashboardStats(),
-      ]);
-      if (catsRes.status === 'fulfilled') setCategories(catsRes.value.data || catsRes.value || []);
-      else toast.error('Failed to load categories');
-      if (statsRes.status === 'fulfilled') setStats(statsRes.value);
-    } catch { toast.error('Failed to load data'); }
+    await Promise.allSettled([fetchCategories(), fetchStats()]);
     setLoading(false);
-    setStatsLoading(false);
-  };
+  }, [fetchCategories, fetchStats]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const filteredCategories = useMemo(() => {
     let result = [...(categories || [])];
@@ -171,14 +194,14 @@ export default function AdminCategoriesPage() {
     setCardFilter(filter === cardFilter ? 'all' : filter);
   };
 
-  const StatCard = ({ icon, label, value, color, desc, tooltip, filterKey }: {
-    icon: React.ReactNode; label: string; value: number; color: string; desc?: string; tooltip: string; filterKey: CardFilter;
+  const StatCard = ({ icon, label, value, color, desc, tooltip, filterKey, onClick }: {
+    icon: React.ReactNode; label: string; value: number; color: string; desc?: string; tooltip: string; filterKey: CardFilter; onClick?: () => void;
   }) => {
     const animated = useCountUp(statsLoading ? 0 : value);
     const isActive = cardFilter === filterKey;
     return (
       <button
-        onClick={() => setCardFilterAndScroll(filterKey)}
+        onClick={onClick || (() => setCardFilterAndScroll(filterKey))}
         title={tooltip}
         className={`bg-white rounded-xl border shadow-sm p-5 text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer group ${isActive ? 'ring-2 ring-gray-900 border-gray-900' : 'border-gray-100'}`}
       >
@@ -186,7 +209,9 @@ export default function AdminCategoriesPage() {
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color} transition-transform group-hover:scale-110`}>
             {icon}
           </div>
-          <span className="text-2xl font-bold text-gray-900 tabular-nums">{statsLoading ? '—' : animated}</span>
+          <span className="text-2xl font-bold text-gray-900 tabular-nums">{statsLoading ? (
+            <span className="inline-block h-7 w-12 bg-gray-200 rounded animate-pulse" />
+          ) : animated}</span>
         </div>
         <p className="text-sm font-medium text-gray-600 mt-2">{label}</p>
         <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
@@ -290,6 +315,9 @@ export default function AdminCategoriesPage() {
             <p className="text-sm text-gray-500 mt-1">Organize your store catalog using categories and subcategories</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={loadData} disabled={loading} className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
             <Link href="/admin/categories/new" className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
               <Plus size={16} /> Add Category
             </Link>
@@ -297,18 +325,22 @@ export default function AdminCategoriesPage() {
         </div>
 
         {/* Dashboard Cards */}
-        {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
-            <StatCard icon={<FolderTree size={18} className="text-blue-600" />} label="Total Categories" value={stats.totalCategories} color="bg-blue-50" desc="Parent categories" tooltip="Top-level categories" filterKey="parent" />
-            <StatCard icon={<Layers size={18} className="text-purple-600" />} label="Subcategories" value={stats.totalSubcategories} color="bg-purple-50" desc="Nested categories" tooltip="Nested categories" filterKey="subcategory" />
-            <StatCard icon={<CheckCircle2 size={18} className="text-green-600" />} label="Active" value={stats.activeCategories} color="bg-green-50" desc="Published & visible" tooltip="Published and visible" filterKey="active" />
-            <StatCard icon={<EyeOff size={18} className="text-gray-600" />} label="Hidden" value={stats.hiddenCategories} color="bg-gray-100" desc="Inactive categories" tooltip="Hidden from customers" filterKey="hidden" />
-            <StatCard icon={<Star size={18} className="text-orange-600" />} label="With Products" value={stats.categoriesWithProducts} color="bg-orange-50" desc="Categories containing products" tooltip="Contains one or more products" filterKey="withProducts" />
-            <StatCard icon={<AlertTriangle size={18} className="text-red-600" />} label="Empty" value={stats.emptyCategories} color="bg-red-50" desc="No products assigned" tooltip="No products assigned" filterKey="empty" />
-            <StatCard icon={<Package size={18} className="text-indigo-600" />} label="Total Products" value={stats.productsAssigned} color="bg-indigo-50" desc="Across all categories" tooltip="Products across all categories" filterKey="all" />
-            <StatCard icon={<Calendar size={18} className="text-cyan-600" />} label="This Month" value={stats.thisMonthCategories} color="bg-cyan-50" desc="New categories this month" tooltip="Created during current month" filterKey="thisMonth" />
-          </div>
-        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
+          {statsLoading ? (
+            Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : stats && (
+            <>
+              <StatCard icon={<FolderTree size={18} className="text-blue-600" />} label="Total Categories" value={stats.totalCategories} color="bg-blue-50" desc="Parent categories" tooltip="Top-level categories" filterKey="parent" />
+              <StatCard icon={<Layers size={18} className="text-purple-600" />} label="Subcategories" value={stats.totalSubcategories} color="bg-purple-50" desc="Nested categories" tooltip="Nested categories" filterKey="subcategory" />
+              <StatCard icon={<CheckCircle2 size={18} className="text-green-600" />} label="Active" value={stats.activeCategories} color="bg-green-50" desc="Published & visible" tooltip="Published and visible" filterKey="active" />
+              <StatCard icon={<EyeOff size={18} className="text-gray-600" />} label="Hidden" value={stats.hiddenCategories} color="bg-gray-100" desc="Inactive categories" tooltip="Hidden from customers" filterKey="hidden" />
+              <StatCard icon={<Star size={18} className="text-orange-600" />} label="With Products" value={stats.categoriesWithProducts} color="bg-orange-50" desc="Categories containing products" tooltip="Contains one or more products" filterKey="withProducts" />
+              <StatCard icon={<AlertTriangle size={18} className="text-red-600" />} label="Empty" value={stats.emptyCategories} color="bg-red-50" desc="No products assigned" tooltip="No products assigned" filterKey="empty" />
+              <StatCard icon={<Package size={18} className="text-indigo-600" />} label="Total Products" value={stats.productsAssigned} color="bg-indigo-50" desc="Across all categories" tooltip="Products across all categories" filterKey="all" onClick={() => router.push('/admin/products')} />
+              <StatCard icon={<Calendar size={18} className="text-cyan-600" />} label="This Month" value={stats.thisMonthCategories} color="bg-cyan-50" desc="New categories this month" tooltip="Created during current month" filterKey="thisMonth" />
+            </>
+          )}
+        </div>
 
         {/* Active filter banner */}
         {activeFilterLabel && (
