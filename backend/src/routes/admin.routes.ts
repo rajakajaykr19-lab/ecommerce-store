@@ -5,6 +5,7 @@ import * as returns from '../controllers/return.controller';
 import * as refunds from '../controllers/refund.controller';
 import * as shipments from '../controllers/shipment.controller';
 import * as bulk from '../controllers/bulkOrder.controller';
+import * as categories from '../controllers/category.controller';
 
 const router = Router();
 
@@ -37,11 +38,17 @@ router.post('/products', admin.adminCreateProduct);
 router.put('/products/:id', admin.adminUpdateProduct);
 router.delete('/products/:id', admin.adminDeleteProduct);
 
-// Categories
-router.get('/categories', admin.getCategories);
-router.post('/categories', admin.createCategory);
-router.put('/categories/:id', admin.updateCategory);
-router.delete('/categories/:id', admin.deleteCategory);
+// Categories (Enhanced)
+router.get('/categories/dashboard-stats', categories.getCategoryDashboardStats);
+router.get('/categories/all-flat', categories.getAllCategoriesFlat);
+router.get('/categories', categories.getCategoriesEnhanced);
+router.post('/categories', categories.createCategoryEnhanced);
+router.post('/categories/bulk', categories.bulkCategoryOperations);
+router.post('/categories/:id/duplicate', categories.duplicateCategory);
+router.post('/categories/reorder', categories.reorderCategories);
+router.get('/categories/:id', categories.getCategoryById);
+router.put('/categories/:id', categories.updateCategoryEnhanced);
+router.delete('/categories/:id', categories.deleteCategorySafe);
 
 // Brands
 router.get('/brands', admin.getBrands);

@@ -43,7 +43,25 @@ export interface Address {
 export interface Category {
   id: string; name: string; slug: string; description?: string; image?: string;
   gender?: string; parentId?: string; isActive: boolean; displayOrder: number;
-  _count?: { products: number; children: number };
+  metaTitle?: string; metaDescription?: string;
+  createdAt?: string; updatedAt?: string;
+  _count?: { products: number; children: number; banners?: number };
+  parent?: { id: string; name: string; slug: string };
+  children?: Category[];
+  healthIssues?: string[];
+  subcategoryAttributes?: any[];
+  analytics?: { totalProducts: number; totalRevenue: number; totalOrders: number };
+}
+
+export interface CategoryDashboardStats {
+  totalCategories: number;
+  totalSubcategories: number;
+  activeCategories: number;
+  hiddenCategories: number;
+  featuredCategories: number;
+  emptyCategories: number;
+  productsAssigned: number;
+  thisMonthCategories: number;
 }
 
 export interface Brand {

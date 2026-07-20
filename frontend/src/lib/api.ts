@@ -338,11 +338,24 @@ class ApiClient {
     return this.request(`/admin/products/${id}`, { method: 'DELETE' });
   }
 
-  // Admin: Categories, Brands, Banners, Orders, Coupons, etc.
-  async getAdminCategories() { return this.request('/admin/categories'); }
+  // Admin: Categories (Enhanced)
+  async getCategoryDashboardStats() { return this.request('/admin/categories/dashboard-stats'); }
+  async getAdminCategories(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/categories${query}`);
+  }
+  async getAdminCategory(id: string) { return this.request(`/admin/categories/${id}`); }
+  async getAllCategoriesFlat() { return this.request('/admin/categories/all-flat'); }
   async createCategory(data: any) { return this.request('/admin/categories', { method: 'POST', body: data }); }
   async updateCategory(id: string, data: any) { return this.request(`/admin/categories/${id}`, { method: 'PUT', body: data }); }
   async deleteCategory(id: string) { return this.request(`/admin/categories/${id}`, { method: 'DELETE' }); }
+  async duplicateCategory(id: string) { return this.request(`/admin/categories/${id}/duplicate`, { method: 'POST' }); }
+  async bulkCategoryOperations(data: { action: string; categoryIds: string[]; parentId?: string; displayOrder?: number }) {
+    return this.request('/admin/categories/bulk', { method: 'POST', body: data });
+  }
+  async reorderCategories(orderedIds: string[]) {
+    return this.request('/admin/categories/reorder', { method: 'POST', body: { orderedIds } });
+  }
 
   async getAdminBrands() { return this.request('/admin/brands'); }
   async createBrand(data: any) { return this.request('/admin/brands', { method: 'POST', body: data }); }
