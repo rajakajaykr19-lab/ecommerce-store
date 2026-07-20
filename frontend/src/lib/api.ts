@@ -49,6 +49,33 @@ class ApiClient {
     return data;
   }
 
+  private async requestText(endpoint: string, options: RequestOptions = {}): Promise<string> {
+    const { method = 'GET', body, headers = {} } = options;
+    const token = this.getToken();
+
+    const config: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    };
+
+    if (body && method !== 'GET') {
+      config.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, config);
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || 'Something went wrong');
+    }
+
+    return response.text();
+  }
+
   // Auth
   async login(email: string, password: string) {
     return this.request('/auth/login', { method: 'POST', body: { email, password } });
@@ -453,7 +480,7 @@ class ApiClient {
 
   async exportOrders(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request(`/admin/orders/export${query}`);
+    return this.requestText(`/admin/orders/export${query}`);
   }
 
   // Returns

@@ -263,35 +263,45 @@ export const exportOrders = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
 
-    const exportData = orders.map((order) => ({
-      orderNumber: order.orderNumber,
-      customerName: order.user.name,
-      customerEmail: order.user.email,
-      date: order.createdAt,
-      status: order.status,
-      paymentMethod: order.paymentMethod,
-      paymentStatus: order.paymentStatus,
-      subtotal: order.subtotal,
-      discount: order.discount,
-      shipping: order.shipping,
-      tax: order.tax,
-      total: order.total,
-      itemCount: order.items.length,
-      items: order.items.map((item) => ({
-        name: item.name,
-        sku: item.sku,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.total,
-      })),
-      address: order.address,
-      trackingNumber: order.trackingNumber,
-    }));
+    const escapeCsv = (val: any) => {
+      const str = String(val ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
 
-    res.json({
-      success: true,
-      data: exportData,
-    });
+    const headers = [
+      'Order Number', 'Customer Name', 'Customer Email', 'Date', 'Status',
+      'Payment Method', 'Payment Status', 'Subtotal', 'Discount', 'Shipping',
+      'Tax', 'Total', 'Items', 'Tracking Number', 'Address',
+    ];
+
+    const rows = orders.map((order) => [
+      order.orderNumber,
+      order.user.name,
+      order.user.email,
+      new Date(order.createdAt).toLocaleDateString('en-IN'),
+      order.status,
+      order.paymentMethod,
+      order.paymentStatus,
+      order.subtotal,
+      order.discount,
+      order.shipping,
+      order.tax,
+      order.total,
+      order.items.map((i) => `${i.name} x${i.quantity}`).join('; '),
+      order.trackingNumber || '',
+      order.address
+        ? [order.address.line1, order.address.line2, order.address.city, order.address.state, order.address.pincode].filter(Boolean).join(', ')
+        : '',
+    ]);
+
+    const csv = [headers.join(','), ...rows.map((r) => r.map(escapeCsv).join(','))].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="orders-export-${Date.now()}.csv"`);
+    res.send(csv);
   } catch (error) {
     next(error);
   }

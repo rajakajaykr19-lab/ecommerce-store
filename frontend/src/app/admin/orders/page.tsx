@@ -193,10 +193,16 @@ export default function AdminOrdersPage() {
       if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
       if (search) params.search = search;
       const res = await api.exportOrders(params);
-      if (res.downloadUrl) {
-        window.open(res.downloadUrl, '_blank');
-      }
-      toast.success('Export started');
+      const blob = new Blob([res], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orders-export-${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('Export downloaded');
     } catch (err: any) {
       toast.error(err.message || 'Export failed');
     }
