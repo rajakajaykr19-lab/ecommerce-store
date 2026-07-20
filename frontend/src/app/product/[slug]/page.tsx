@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { formatPrice, validatePincode } from '@/lib/utils';
+import { formatPrice, validatePincode, getImageUrl } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,17 @@ export default function ProductDetailPage() {
     }
   };
 
+  const attributeValues: { id: string; attributeId: string; value: string; attribute: { id: string; name: string; slug: string; fieldType: string; group?: { id: string; name: string; slug: string } } }[] = (product as any)?.attributeValues || [];
+  const specGroups = useMemo(() => {
+    const groups: Record<string, typeof attributeValues> = {};
+    attributeValues.filter((av) => av.value && av.value.trim() !== '').forEach((av) => {
+      const name = av.attribute?.group?.name || 'Details';
+      if (!groups[name]) groups[name] = [];
+      groups[name].push(av);
+    });
+    return groups;
+  }, [attributeValues]);
+
   if (loading) {
     return <div className="container-custom py-20 flex justify-center"><Loader2 className="animate-spin" size={32} /></div>;
   }
@@ -88,16 +99,6 @@ export default function ProductDetailPage() {
 
   const images = product.images?.length ? product.images : [{ id: '0', url: product.primaryImage || '', isPrimary: true, displayOrder: 0 }];
   const hasDiscount = product.salePrice && product.salePrice < product.basePrice;
-  const attributeValues: { id: string; attributeId: string; value: string; attribute: { id: string; name: string; slug: string; fieldType: string; group?: { id: string; name: string; slug: string } } }[] = (product as any).attributeValues || [];
-  const specGroups = useMemo(() => {
-    const groups: Record<string, typeof attributeValues> = {};
-    attributeValues.filter((av) => av.value && av.value.trim() !== '').forEach((av) => {
-      const name = av.attribute.group?.name || 'Details';
-      if (!groups[name]) groups[name] = [];
-      groups[name].push(av);
-    });
-    return groups;
-  }, [attributeValues]);
 
   return (
     <div className="container-custom py-8">
@@ -116,7 +117,7 @@ export default function ProductDetailPage() {
           <div className="relative aspect-[4/5] bg-gray-50 overflow-hidden">
             {images[selectedImage]?.url ? (
               <Image
-                src={images[selectedImage].url}
+                src={getImageUrl(images[selectedImage].url)}
                 alt={product.name}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
@@ -140,7 +141,7 @@ export default function ProductDetailPage() {
                   onClick={() => setSelectedImage(i)}
                   className={`w-20 h-24 flex-shrink-0 border-2 ${selectedImage === i ? 'border-[#1a1a2e]' : 'border-transparent'}`}
                 >
-                  <Image src={img.url} alt="" width={80} height={96} className="w-full h-full object-cover" />
+                  <Image src={getImageUrl(img.url)} alt="" width={80} height={96} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -150,7 +151,7 @@ export default function ProductDetailPage() {
         {/* Details */}
         <div className="space-y-6">
           {product.category && (
-            <p className="text-xs uppercase tracking-widest text-gray-400">{product.category.name}</p>
+            <p className="text-xs uppercase tracking-widest text-gray-400">{product.category?.name}</p>
           )}
           <h1 className="text-2xl lg:text-3xl font-bold">{product.name}</h1>
 
@@ -162,17 +163,17 @@ export default function ProductDetailPage() {
                   <Star key={star} size={16} className={star <= Math.round(product.avgRating!) ? 'fill-[#d4a853] text-[#d4a853]' : 'text-gray-300'} />
                 ))}
               </div>
-              <span className="text-sm text-gray-500">{product.avgRating} ({product.reviewCount} reviews)</span>
+              <span className="text-sm text-gray-500">{product.avgRating} ({product.reviewCount || 0} reviews)</span>
             </div>
           )}
 
           {/* Price */}
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-bold">{formatPrice(product.salePrice || product.basePrice)}</span>
+            <span className="text-3xl font-bold">{formatPrice(product.salePrice || product.basePrice || 0)}</span>
             {hasDiscount && (
               <>
-                <span className="text-lg text-gray-400 line-through">{formatPrice(product.basePrice)}</span>
-                <span className="text-sm text-[#e94560] font-medium">{product.discountPercent}% off</span>
+                <span className="text-lg text-gray-400 line-through">{formatPrice(product.basePrice || 0)}</span>
+                <span className="text-sm text-[#e94560] font-medium">{product.discountPercent || 0}% off</span>
               </>
             )}
           </div>

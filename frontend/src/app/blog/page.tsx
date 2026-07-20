@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, getImageUrl } from '@/lib/utils';
 import type { BlogPost } from '@/types';
 import { Calendar, User, ArrowRight, Loader2 } from 'lucide-react';
 
@@ -38,7 +38,7 @@ export default function BlogPage() {
                 <Link key={post.id} href={`/blog/${post.slug}`} className="group card rounded-none overflow-hidden">
                   <div className="aspect-[16/9] bg-gray-100 relative overflow-hidden">
                     {post.coverImage ? (
-                      <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={getImageUrl(post.coverImage)} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300">No Image</div>
                     )}

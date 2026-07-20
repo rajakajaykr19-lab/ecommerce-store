@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Category } from '@/types';
+import { getImageUrl } from '@/lib/utils';
 
 const fallbackCategories = [
   { name: 'Men', slug: 'men', image: '', href: '/shop?gender=MEN', count: '2,500+' },
@@ -33,7 +34,7 @@ export function CategoriesGrid({ categories }: { categories?: Category[] }) {
               className="group relative h-48 md:h-64 bg-gray-100 overflow-hidden"
             >
               {cat.image ? (
-                <Image src={cat.image} alt={cat.name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                <Image src={getImageUrl(cat.image)} alt={cat.name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-300 text-6xl font-bold">
                   {cat.name[0]}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getImageUrl } from '@/lib/utils';
 import { Search, X, Loader2 } from 'lucide-react';
 
 interface SearchResult {
@@ -68,7 +68,7 @@ export function SearchBar({ onClose }: { onClose: () => void }) {
                     className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                      {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
+                      {item.image && <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>

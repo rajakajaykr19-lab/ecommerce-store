@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { formatPrice, validatePincode } from '@/lib/utils';
+import { formatPrice, validatePincode, getImageUrl } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
 import { Button } from '@/components/ui/button';
@@ -136,7 +136,7 @@ export default function CategoryProductPage() {
           <div className="relative aspect-[4/5] bg-gray-50 overflow-hidden">
             {images[selectedImage]?.url ? (
               <Image
-                src={images[selectedImage].url}
+                src={getImageUrl(images[selectedImage].url)}
                 alt={product.name}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
@@ -160,7 +160,7 @@ export default function CategoryProductPage() {
                   onClick={() => setSelectedImage(i)}
                   className={`w-20 h-24 flex-shrink-0 border-2 ${selectedImage === i ? 'border-black' : 'border-transparent'}`}
                 >
-                  <Image src={img.url} alt="" width={80} height={96} className="w-full h-full object-cover" />
+                  <Image src={getImageUrl(img.url)} alt="" width={80} height={96} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

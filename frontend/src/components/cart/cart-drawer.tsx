@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/providers/cart-provider';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getImageUrl } from '@/lib/utils';
 import { X, ShoppingBag, Minus, Plus, Trash2 } from 'lucide-react';
 
 export function CartDrawer() {
@@ -49,7 +49,7 @@ export function CartDrawer() {
                     <div key={item.id} className="flex gap-4 pb-4 border-b">
                       <div className="w-20 h-24 bg-gray-50 flex-shrink-0">
                         {item.product.primaryImage && (
-                          <img src={item.product.primaryImage} alt={item.product.name} className="w-full h-full object-cover" />
+                          <img src={getImageUrl(item.product.primaryImage)} alt={item.product.name} className="w-full h-full object-cover" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

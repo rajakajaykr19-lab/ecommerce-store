@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { api } from '@/lib/api';
-import { formatPrice, cn } from '@/lib/utils';
+import { formatPrice, cn, getImageUrl } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { Heart, ShoppingBag, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -54,7 +54,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
       <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
         {imageUrl && !imgError ? (
           <Image
-            src={imageUrl}
+            src={getImageUrl(imageUrl)}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"

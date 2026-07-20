@@ -135,6 +135,13 @@ export function isClothingCategory(categories: CategoryItem[], categoryId: strin
   return false;
 }
 
+export function getImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+  return url;
+}
+
 export function isBabyCategory(categories: CategoryItem[], categoryId: string): boolean {
   const cat = categories.find((c) => c.id === categoryId);
   if (!cat) return false;

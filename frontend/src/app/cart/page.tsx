@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCart } from '@/providers/cart-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getImageUrl } from '@/lib/utils';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
 
 export default function CartPage() {
@@ -52,7 +52,7 @@ export default function CartPage() {
             <div key={item.id} className="flex gap-4 border p-4">
               <Link href={`/product/${item.product.slug}`} className="w-24 h-28 bg-gray-50 flex-shrink-0">
                 {item.product.primaryImage && (
-                  <img src={item.product.primaryImage} alt={item.product.name} className="w-full h-full object-cover" />
+                  <img src={getImageUrl(item.product.primaryImage)} alt={item.product.name} className="w-full h-full object-cover" />
                 )}
               </Link>
               <div className="flex-1 min-w-0">

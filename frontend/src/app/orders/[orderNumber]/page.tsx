@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/providers/auth-provider';
 import { api } from '@/lib/api';
-import { formatPrice, formatDate, getStatusColor } from '@/lib/utils';
+import { formatPrice, formatDate, getStatusColor, getImageUrl } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Order } from '@/types';
 import { ArrowLeft, Package, Loader2, FileText } from 'lucide-react';
@@ -102,7 +102,7 @@ export default function OrderDetailPage() {
             <div key={item.id} className="flex gap-4 pb-4 border-b last:border-0">
               <div className="w-20 h-24 bg-gray-50 flex-shrink-0">
                 {item.product?.images?.[0]?.url && (
-                  <img src={item.product.images[0].url} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={getImageUrl(item.product.images[0].url)} alt={item.name} className="w-full h-full object-cover" />
                 )}
               </div>
               <div className="flex-1">
