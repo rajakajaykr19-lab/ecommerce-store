@@ -82,6 +82,11 @@ export default function ProductDetailPage() {
   const shareRef = useRef<HTMLDivElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
+  // Phase 3 states
+  const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
+  const [expressDelivery, setExpressDelivery] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
   // Phase 2 states
   const [showCartPanel, setShowCartPanel] = useState(false);
   const [cartPanelItem, setCartPanelItem] = useState<{ name: string; price: number; image: string; quantity: number } | null>(null);
@@ -134,6 +139,21 @@ export default function ProductDetailPage() {
       localStorage.setItem('helpfulVotes', JSON.stringify(helpfulVotes));
     }
   }, [helpfulVotes]);
+
+  // Phase 3: Set document title + canonical URL for SEO
+  useEffect(() => {
+    if (!product) return;
+    document.title = product.metaTitle || `${product.name} | Shop`;
+    if (product.metaDescription) {
+      let meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute('content', product.metaDescription);
+      else { meta = document.createElement('meta'); meta.setAttribute('name', 'description'); meta.setAttribute('content', product.metaDescription); document.head.appendChild(meta); }
+    }
+    const canonicalHref = `${window.location.origin}/product/${product.slug}`;
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (canonical) canonical.href = canonicalHref;
+    else { canonical = document.createElement('link'); canonical.rel = 'canonical'; canonical.href = canonicalHref; document.head.appendChild(canonical); }
+  }, [product]);
 
   const fetchProduct = async () => {
     setLoading(true);
@@ -235,6 +255,17 @@ export default function ProductDetailPage() {
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setZoomPos({ x, y });
+  }, []);
+
+  const toggleAccordion = (id: string) => {
+    setOpenAccordions((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleCarouselScroll = useCallback(() => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+    const index = Math.round(scrollLeft / clientWidth);
+    setSelectedImage(index);
   }, []);
 
   const handleSubmitReview = async () => {
@@ -372,100 +403,140 @@ export default function ProductDetailPage() {
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
           {/* ========== IMAGE GALLERY ========== */}
           <div className="space-y-3">
-            {/* Main Image */}
-            <div
-              ref={imageContainerRef}
-              className="relative aspect-[4/5] bg-gray-50 overflow-hidden cursor-zoom-in group"
-              onMouseEnter={() => setZooming(true)}
-              onMouseLeave={() => { setZooming(false); setZoomPos({ x: 50, y: 50 }); }}
-              onMouseMove={handleMouseMove}
-              onClick={() => setShowLightbox(true)}
-            >
-              {images[selectedImage]?.url ? (
-                <Image
-                  src={getImageUrl(images[selectedImage].url)}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className={`object-cover transition-transform duration-300 ease-out ${zooming ? 'scale-[2.5]' : 'scale-100'}`}
-                  style={zooming ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : undefined}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
-                  <Eye size={48} />
-                  <span className="text-sm">No Image Available</span>
-                </div>
-              )}
-
-              {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-2">
-                {hasDiscount && (
-                  <span className="bg-[#e94560] text-white text-xs font-bold px-3 py-1.5">
-                    {discountPercent}% OFF
-                  </span>
-                )}
-                {product.isNewArrival && (
-                  <span className="bg-green-500 text-white text-xs font-bold px-3 py-1.5">
-                    NEW
-                  </span>
-                )}
-                {product.isBestSeller && (
-                  <span className="bg-[#d4a853] text-black text-xs font-bold px-3 py-1.5">
-                    BESTSELLER
-                  </span>
-                )}
-              </div>
-
-              {/* Image counter */}
-              {images.length > 1 && (
-                <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-3 py-1.5 backdrop-blur-sm">
-                  {selectedImage + 1} / {images.length}
-                </div>
-              )}
-
-              {/* Zoom hint on desktop */}
-              <div className="hidden md:flex absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity gap-1.5 items-center">
-                <Eye size={14} /> Hover to zoom
-              </div>
-
-              {/* Nav arrows for multiple images */}
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => prev > 0 ? prev - 1 : images.length - 1); }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => prev < images.length - 1 ? prev + 1 : 0); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Thumbnails */}
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {/* Mobile: Scroll-snap Carousel */}
+            <div className="md:hidden">
+              <div
+                ref={carouselRef}
+                className="relative w-full overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+                onScroll={handleCarouselScroll}
+              >
                 {images.map((img, i) => (
-                  <button
+                  <div
                     key={img.id}
-                    onClick={() => setSelectedImage(i)}
-                    className={`relative flex-shrink-0 w-16 h-20 md:w-20 md:h-24 overflow-hidden transition-all duration-200 ${
-                      selectedImage === i
-                        ? 'ring-2 ring-black ring-offset-2'
-                        : 'opacity-60 hover:opacity-100'
-                    }`}
+                    className="relative w-full flex-shrink-0 aspect-[4/5] snap-center bg-gray-50 overflow-hidden"
+                    onClick={() => setShowLightbox(true)}
                   >
-                    <Image src={getImageUrl(img.url)} alt="" fill sizes="80px" className="object-cover" />
-                  </button>
+                    {img.url ? (
+                      <Image src={getImageUrl(img.url)} alt={`${product.name} ${i + 1}`} fill sizes="100vw" className="object-cover" priority={i === 0} />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
+                        <Eye size={48} />
+                        <span className="text-sm">No Image</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
-            )}
+              {/* Carousel dots */}
+              {images.length > 1 && (
+                <div className="flex items-center justify-center gap-1.5 mt-3">
+                  {images.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (carouselRef.current) {
+                          carouselRef.current.scrollTo({ left: carouselRef.current.clientWidth * i, behavior: 'smooth' });
+                        }
+                        setSelectedImage(i);
+                      }}
+                      className={`h-1.5 rounded-full transition-all ${selectedImage === i ? 'w-5 bg-black' : 'w-1.5 bg-gray-300'}`}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* Badges on mobile carousel */}
+              <div className="absolute top-4 left-4 flex flex-col gap-2 z-10 pointer-events-none">
+                {hasDiscount && <span className="bg-[#e94560] text-white text-xs font-bold px-3 py-1.5">{discountPercent}% OFF</span>}
+                {product.isNewArrival && <span className="bg-green-500 text-white text-xs font-bold px-3 py-1.5">NEW</span>}
+                {product.isBestSeller && <span className="bg-[#d4a853] text-black text-xs font-bold px-3 py-1.5">BESTSELLER</span>}
+              </div>
+            </div>
+
+            {/* Desktop: Main Image + Thumbnails */}
+            <div className="hidden md:block space-y-3">
+              {/* Main Image */}
+              <div
+                ref={imageContainerRef}
+                className="relative aspect-[4/5] bg-gray-50 overflow-hidden cursor-zoom-in group"
+                onMouseEnter={() => setZooming(true)}
+                onMouseLeave={() => { setZooming(false); setZoomPos({ x: 50, y: 50 }); }}
+                onMouseMove={handleMouseMove}
+                onClick={() => setShowLightbox(true)}
+              >
+                {images[selectedImage]?.url ? (
+                  <Image
+                    src={getImageUrl(images[selectedImage].url)}
+                    alt={product.name}
+                    fill
+                    sizes="50vw"
+                    className={`object-cover transition-transform duration-300 ease-out ${zooming ? 'scale-[2.5]' : 'scale-100'}`}
+                    style={zooming ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : undefined}
+                    priority
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
+                    <Eye size={48} />
+                    <span className="text-sm">No Image Available</span>
+                  </div>
+                )}
+
+                {/* Badges */}
+                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                  {hasDiscount && <span className="bg-[#e94560] text-white text-xs font-bold px-3 py-1.5">{discountPercent}% OFF</span>}
+                  {product.isNewArrival && <span className="bg-green-500 text-white text-xs font-bold px-3 py-1.5">NEW</span>}
+                  {product.isBestSeller && <span className="bg-[#d4a853] text-black text-xs font-bold px-3 py-1.5">BESTSELLER</span>}
+                </div>
+
+                {/* Image counter */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-3 py-1.5 backdrop-blur-sm">
+                    {selectedImage + 1} / {images.length}
+                  </div>
+                )}
+
+                {/* Zoom hint */}
+                <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity gap-1.5 items-center flex">
+                  <Eye size={14} /> Hover to zoom
+                </div>
+
+                {/* Nav arrows */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => prev > 0 ? prev - 1 : images.length - 1); }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => prev < images.length - 1 ? prev + 1 : 0); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Thumbnails */}
+              {images.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {images.map((img, i) => (
+                    <button
+                      key={img.id}
+                      onClick={() => setSelectedImage(i)}
+                      className={`relative flex-shrink-0 w-20 h-24 overflow-hidden transition-all duration-200 ${
+                        selectedImage === i
+                          ? 'ring-2 ring-black ring-offset-2'
+                          : 'opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <Image src={getImageUrl(img.url)} alt="" fill sizes="80px" className="object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ========== PRODUCT DETAILS ========== */}
@@ -683,6 +754,26 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               )}
+              {/* Express Delivery Badge */}
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => setExpressDelivery(!expressDelivery)}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all ${
+                    expressDelivery ? 'border-[#d4a853] bg-[#d4a853]/5' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap size={16} className={expressDelivery ? 'text-[#d4a853]' : 'text-gray-400'} />
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-gray-800">Express Delivery</p>
+                      <p className="text-[10px] text-gray-400">Get it in 1-2 days (₹199 extra)</p>
+                    </div>
+                  </div>
+                  <div className={`w-9 h-5 rounded-full transition-all flex items-center ${expressDelivery ? 'bg-[#d4a853] justify-end' : 'bg-gray-200 justify-start'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm mx-0.5 transition-transform`} />
+                  </div>
+                </button>
+              </div>
             </div>
 
             {/* Trust Badges */}
@@ -711,11 +802,30 @@ export default function ProductDetailPage() {
               {product.washCare && <div className="flex items-center gap-2 text-sm text-gray-600"><span className="w-1 h-1 rounded-full bg-gray-400" /> Care: {product.washCare}</div>}
               {product.sku && <div className="flex items-center gap-2 text-sm text-gray-600"><span className="w-1 h-1 rounded-full bg-gray-400" /> SKU: {product.sku}</div>}
             </div>
+
+            {/* Seller / Brand Info */}
+            {product.brand && (
+              <div className="border-t border-gray-100 pt-4 mb-5">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {product.brand.name[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Sold by</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{product.brand.name}</p>
+                  </div>
+                  <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 flex items-center gap-1 flex-shrink-0">
+                    <BadgeCheck size={12} /> Verified Seller
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* ========== TABS SECTION ========== */}
-        <div className="mt-12 border-t border-gray-200">
+        {/* Desktop Tabs */}
+        <div className="mt-12 border-t border-gray-200 hidden md:block">
           <div className="flex gap-0 border-b border-gray-200 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
@@ -831,6 +941,76 @@ export default function ProductDetailPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Mobile Accordions */}
+        <div className="mt-8 md:hidden border-t border-gray-200">
+          {tabs.map((tab) => (
+            <div key={tab.id} className="border-b border-gray-200">
+              <button
+                onClick={() => toggleAccordion(tab.id)}
+                className="w-full flex items-center justify-between py-4 text-left"
+              >
+                <span className="text-sm font-semibold text-gray-900">{tab.label}</span>
+                <ChevronDown size={18} className={`text-gray-400 transition-transform ${openAccordions[tab.id] ? 'rotate-180' : ''}`} />
+              </button>
+              {openAccordions[tab.id] && (
+                <div className="pb-5 animate-fadeIn">
+                  {tab.id === 'description' && (
+                    product.description ? (
+                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">No description available.</p>
+                    )
+                  )}
+                  {tab.id === 'sizeguide' && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="py-2 pr-2 text-left font-semibold">Size</th>
+                            <th className="py-2 px-2 text-center font-semibold">Chest</th>
+                            <th className="py-2 px-2 text-center font-semibold">Waist</th>
+                            <th className="py-2 px-2 text-center font-semibold">Length</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sizeData.map((row) => (
+                            <tr key={row.size} className="border-b border-gray-100 last:border-0">
+                              <td className="py-2 pr-2 font-medium">{row.size}</td>
+                              <td className="py-2 px-2 text-center">{row.chest}"</td>
+                              <td className="py-2 px-2 text-center">{row.waist}"</td>
+                              <td className="py-2 px-2 text-center">{row.length}"</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {tab.id === 'fabric' && (
+                    <div className="space-y-3 text-sm text-gray-600">
+                      {product.fabric && <p>Fabric: {product.fabric}</p>}
+                      {product.material && <p>Material: {product.material}</p>}
+                      {product.washCare && <p>Wash Care: {product.washCare}</p>}
+                      <p>Origin: Made in India</p>
+                    </div>
+                  )}
+                  {tab.id === 'shipping' && (
+                    <div className="space-y-4 text-sm text-gray-600">
+                      <div>
+                        <p className="font-medium text-gray-800 mb-1">Shipping</p>
+                        <p>Free above ₹499 · 3-7 days · Express ₹199</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800 mb-1">Returns</p>
+                        <p>7-day return policy · Free pickup · Refund in 5-7 days</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* ========== SPECIFICATIONS ========== */}
