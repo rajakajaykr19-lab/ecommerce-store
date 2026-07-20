@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -20,7 +20,6 @@ type CardFilter = 'all' | 'parent' | 'subcategory' | 'active' | 'hidden' | 'with
 function useCountUp(target: number, duration = 600) {
   const [value, setValue] = useState(0);
   const ref = useRef<number | null>(null);
-
   useEffect(() => {
     if (target === 0) { setValue(0); return; }
     const start = performance.now();
@@ -34,7 +33,6 @@ function useCountUp(target: number, duration = 600) {
     ref.current = requestAnimationFrame(animate);
     return () => { if (ref.current) cancelAnimationFrame(ref.current); };
   }, [target, duration]);
-
   return value;
 }
 
@@ -61,7 +59,6 @@ export default function AdminCategoriesPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [parentFilter, setParentFilter] = useState('all');
   const [sortField, setSortField] = useState<SortField>('displayOrder');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -74,75 +71,36 @@ export default function AdminCategoriesPage() {
     try {
       const res = await api.getCategoryDashboardStats();
       setStats(res.data || res);
-    } catch {
-      // stats will stay null
-    }
+    } catch { /* stats will stay null */ }
     setStatsLoading(false);
   }, []);
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (filter?: CardFilter, searchTerm?: string) => {
     try {
-      const res = await api.getAdminCategories({ limit: '200' });
+      const params: Record<string, string> = { limit: '500' };
+      if (filter && filter !== 'all') params.dashboardFilter = filter;
+      if (searchTerm) params.search = searchTerm;
+      if (sortField) params.sort = sortField;
+      if (sortOrder) params.order = sortOrder;
+      const res = await api.getAdminCategories(params);
       setCategories(res.data || res || []);
     } catch {
       toast.error('Failed to load categories');
     }
-  }, []);
+  }, [sortField, sortOrder]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setStatsLoading(true);
-    await Promise.allSettled([fetchCategories(), fetchStats()]);
+    await Promise.allSettled([fetchCategories(cardFilter, search), fetchStats()]);
     setLoading(false);
-  }, [fetchCategories, fetchStats]);
+  }, [fetchCategories, fetchStats, cardFilter, search]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, []);
 
-  const filteredCategories = useMemo(() => {
-    let result = [...(categories || [])];
-
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q) ||
-        (c.description && c.description.toLowerCase().includes(q))
-      );
-    }
-
-    if (statusFilter === 'active') result = result.filter(c => c.isActive);
-    else if (statusFilter === 'inactive') result = result.filter(c => !c.isActive);
-    else if (statusFilter === 'empty') result = result.filter(c => (c._count?.products || 0) === 0 && (c._count?.children || 0) === 0);
-    else if (statusFilter === 'featured') result = result.filter(c => (c._count?.products || 0) > 0);
-
-    if (parentFilter === 'none') result = result.filter(c => !c.parentId);
-    else if (parentFilter !== 'all') result = result.filter(c => c.parentId === parentFilter);
-
-    switch (cardFilter) {
-      case 'parent': result = result.filter(c => !c.parentId); break;
-      case 'subcategory': result = result.filter(c => !!c.parentId); break;
-      case 'active': result = result.filter(c => c.isActive); break;
-      case 'hidden': result = result.filter(c => !c.isActive); break;
-      case 'withProducts': result = result.filter(c => (c._count?.products || 0) > 0); break;
-      case 'empty': result = result.filter(c => (c._count?.products || 0) === 0 && (c._count?.children || 0) === 0); break;
-      case 'thisMonth': {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        result = result.filter(c => c.createdAt && new Date(c.createdAt) >= start);
-        break;
-      }
-    }
-
-    result.sort((a, b) => {
-      let cmp = 0;
-      if (sortField === 'name') cmp = a.name.localeCompare(b.name);
-      else if (sortField === 'products') cmp = (a._count?.products || 0) - (b._count?.products || 0);
-      else if (sortField === 'createdAt') cmp = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-      else cmp = a.displayOrder - b.displayOrder;
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-
-    return result;
-  }, [categories, search, statusFilter, parentFilter, sortField, sortOrder, cardFilter]);
+  useEffect(() => {
+    fetchCategories(cardFilter, search);
+  }, [cardFilter, sortField, sortOrder]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -188,10 +146,17 @@ export default function AdminCategoriesPage() {
   const buildTree = (cats: Category[], parentId: string | null = null): Category[] =>
     cats.filter(c => c.parentId === parentId).sort((a, b) => a.displayOrder - b.displayOrder);
 
-  const topLevel = buildTree(filteredCategories);
+  const showTree = cardFilter === 'all' || cardFilter === 'parent';
+  const topLevel = showTree ? buildTree(categories) : [];
 
   const setCardFilterAndScroll = (filter: CardFilter) => {
-    setCardFilter(filter === cardFilter ? 'all' : filter);
+    const next = filter === cardFilter ? 'all' : filter;
+    setCardFilter(next);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearch(term);
+    fetchCategories(cardFilter, term);
   };
 
   const StatCard = ({ icon, label, value, color, desc, tooltip, filterKey, onClick }: {
@@ -209,9 +174,9 @@ export default function AdminCategoriesPage() {
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color} transition-transform group-hover:scale-110`}>
             {icon}
           </div>
-          <span className="text-2xl font-bold text-gray-900 tabular-nums">{statsLoading ? (
-            <span className="inline-block h-7 w-12 bg-gray-200 rounded animate-pulse" />
-          ) : animated}</span>
+          <span className="text-2xl font-bold text-gray-900 tabular-nums">
+            {statsLoading ? <span className="inline-block h-7 w-12 bg-gray-200 rounded animate-pulse" /> : animated}
+          </span>
         </div>
         <p className="text-sm font-medium text-gray-600 mt-2">{label}</p>
         <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
@@ -221,7 +186,7 @@ export default function AdminCategoriesPage() {
   };
 
   const CategoryRow = ({ cat, level = 0 }: { cat: Category; level?: number }) => {
-    const children = buildTree(filteredCategories, cat.id);
+    const children = buildTree(categories, cat.id);
     const isExpanded = expandedIds.has(cat.id);
     const hasChildren = children.length > 0;
     const isMenuOpen = openMenuId === cat.id;
@@ -235,24 +200,20 @@ export default function AdminCategoriesPage() {
           <button onClick={() => toggleSelect(cat.id)} className="w-4 h-4 rounded border-gray-300 border flex items-center justify-center flex-shrink-0">
             {selectedIds.has(cat.id) && <div className="w-2.5 h-2.5 bg-blue-500 rounded-sm" />}
           </button>
-
           {hasChildren ? (
             <button onClick={() => toggleExpand(cat.id)} className="flex-shrink-0 p-0.5 hover:bg-gray-200 rounded">
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
           ) : <div className="w-5" />}
-
           {cat.image && (
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
               <img src={cat.image} alt="" className="w-full h-full object-cover" />
             </div>
           )}
-
           <div className="flex-1 min-w-0">
             <Link href={`/admin/categories/${cat.id}`} className="text-sm font-medium text-gray-900 hover:text-blue-600 truncate block">{cat.name}</Link>
             <p className="text-xs text-gray-400 truncate">/{cat.slug}</p>
           </div>
-
           <div className="hidden md:flex items-center gap-4 text-xs text-gray-500">
             <span className="flex items-center gap-1 w-16 justify-center"><Package size={12} />{cat._count?.products || 0}</span>
             {cat._count?.children ? <span className="flex items-center gap-1 w-12 justify-center"><Layers size={12} />{cat._count.children}</span> : <span className="w-12" />}
@@ -260,7 +221,6 @@ export default function AdminCategoriesPage() {
               {cat.isActive ? 'Active' : 'Hidden'}
             </span>
           </div>
-
           <div className="relative">
             <button onClick={() => setOpenMenuId(isMenuOpen ? null : cat.id)} className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors">
               <MoreHorizontal size={16} />
@@ -269,7 +229,7 @@ export default function AdminCategoriesPage() {
               <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl border border-gray-200 shadow-xl z-50 py-1.5">
                 <Link href={`/admin/categories/${cat.id}`} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><Eye size={14} className="text-gray-400" /> View Details</Link>
                 <Link href={`/admin/categories/${cat.id}`} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><Edit size={14} className="text-gray-400" /> Edit</Link>
-                {hasChildren && <button onClick={() => { setParentFilter(cat.id); setOpenMenuId(null); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><FolderTree size={14} className="text-gray-400" /> Subcategories ({cat._count?.children || 0})</button>}
+                {hasChildren && <button onClick={() => { setCardFilter('subcategory'); setOpenMenuId(null); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><FolderTree size={14} className="text-gray-400" /> Subcategories ({cat._count?.children || 0})</button>}
                 <button onClick={() => handleDuplicate(cat.id)} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><Copy size={14} className="text-gray-400" /> Duplicate</button>
                 <button onClick={() => toggleActive(cat)} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50">
                   {cat.isActive ? <EyeOff size={14} className="text-gray-400" /> : <Eye size={14} className="text-gray-400" />} {cat.isActive ? 'Hide' : 'Publish'}
@@ -282,6 +242,52 @@ export default function AdminCategoriesPage() {
         </div>
         {isExpanded && children.map(child => <CategoryRow key={child.id} cat={child} level={level + 1} />)}
       </>
+    );
+  };
+
+  const FlatCategoryRow = ({ cat }: { cat: Category }) => {
+    const isMenuOpen = openMenuId === cat.id;
+    return (
+      <div
+        className={`flex items-center gap-2 px-4 py-3 border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${selectedIds.has(cat.id) ? 'bg-blue-50/50' : ''}`}
+      >
+        <button onClick={() => toggleSelect(cat.id)} className="w-4 h-4 rounded border-gray-300 border flex items-center justify-center flex-shrink-0">
+          {selectedIds.has(cat.id) && <div className="w-2.5 h-2.5 bg-blue-500 rounded-sm" />}
+        </button>
+        <div className="w-5" />
+        {cat.image && (
+          <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+            <img src={cat.image} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <Link href={`/admin/categories/${cat.id}`} className="text-sm font-medium text-gray-900 hover:text-blue-600 truncate block">{cat.name}</Link>
+          <p className="text-xs text-gray-400 truncate">/{cat.slug}{cat.parent ? ` — in ${cat.parent.name}` : ''}</p>
+        </div>
+        <div className="hidden md:flex items-center gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1 w-16 justify-center"><Package size={12} />{cat._count?.products || 0}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium w-16 text-center ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            {cat.isActive ? 'Active' : 'Hidden'}
+          </span>
+        </div>
+        <div className="relative">
+          <button onClick={() => setOpenMenuId(isMenuOpen ? null : cat.id)} className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors">
+            <MoreHorizontal size={16} />
+          </button>
+          {isMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl border border-gray-200 shadow-xl z-50 py-1.5">
+              <Link href={`/admin/categories/${cat.id}`} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><Eye size={14} className="text-gray-400" /> View Details</Link>
+              <Link href={`/admin/categories/${cat.id}`} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><Edit size={14} className="text-gray-400" /> Edit</Link>
+              <button onClick={() => handleDuplicate(cat.id)} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50"><Copy size={14} className="text-gray-400" /> Duplicate</button>
+              <button onClick={() => toggleActive(cat)} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-gray-50">
+                {cat.isActive ? <EyeOff size={14} className="text-gray-400" /> : <Eye size={14} className="text-gray-400" />} {cat.isActive ? 'Hide' : 'Publish'}
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button onClick={() => { setDeleteConfirm(cat.id); setOpenMenuId(null); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50"><Trash2 size={14} /> Delete</button>
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -326,53 +332,45 @@ export default function AdminCategoriesPage() {
 
         {/* Dashboard Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
-          {statsLoading ? (
-            Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-          ) : stats && (
-            <>
-              <StatCard icon={<FolderTree size={18} className="text-blue-600" />} label="Total Categories" value={stats.totalCategories} color="bg-blue-50" desc="Parent categories" tooltip="Top-level categories" filterKey="parent" />
-              <StatCard icon={<Layers size={18} className="text-purple-600" />} label="Subcategories" value={stats.totalSubcategories} color="bg-purple-50" desc="Nested categories" tooltip="Nested categories" filterKey="subcategory" />
-              <StatCard icon={<CheckCircle2 size={18} className="text-green-600" />} label="Active" value={stats.activeCategories} color="bg-green-50" desc="Published & visible" tooltip="Published and visible" filterKey="active" />
-              <StatCard icon={<EyeOff size={18} className="text-gray-600" />} label="Hidden" value={stats.hiddenCategories} color="bg-gray-100" desc="Inactive categories" tooltip="Hidden from customers" filterKey="hidden" />
-              <StatCard icon={<Star size={18} className="text-orange-600" />} label="With Products" value={stats.categoriesWithProducts} color="bg-orange-50" desc="Categories containing products" tooltip="Contains one or more products" filterKey="withProducts" />
-              <StatCard icon={<AlertTriangle size={18} className="text-red-600" />} label="Empty" value={stats.emptyCategories} color="bg-red-50" desc="No products assigned" tooltip="No products assigned" filterKey="empty" />
-              <StatCard icon={<Package size={18} className="text-indigo-600" />} label="Total Products" value={stats.productsAssigned} color="bg-indigo-50" desc="Across all categories" tooltip="Products across all categories" filterKey="all" onClick={() => router.push('/admin/products')} />
-              <StatCard icon={<Calendar size={18} className="text-cyan-600" />} label="This Month" value={stats.thisMonthCategories} color="bg-cyan-50" desc="New categories this month" tooltip="Created during current month" filterKey="thisMonth" />
-            </>
-          )}
+          {statsLoading
+            ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+            : stats && (
+              <>
+                <StatCard icon={<FolderTree size={18} className="text-blue-600" />} label="Total Categories" value={stats.totalCategories} color="bg-blue-50" desc="Parent categories" tooltip="Top-level categories" filterKey="parent" />
+                <StatCard icon={<Layers size={18} className="text-purple-600" />} label="Subcategories" value={stats.totalSubcategories} color="bg-purple-50" desc="Nested categories" tooltip="Nested categories" filterKey="subcategory" />
+                <StatCard icon={<CheckCircle2 size={18} className="text-green-600" />} label="Active" value={stats.activeCategories} color="bg-green-50" desc="Published & visible" tooltip="Published and visible" filterKey="active" />
+                <StatCard icon={<EyeOff size={18} className="text-gray-600" />} label="Hidden" value={stats.hiddenCategories} color="bg-gray-100" desc="Inactive categories" tooltip="Hidden from customers" filterKey="hidden" />
+                <StatCard icon={<Star size={18} className="text-orange-600" />} label="With Products" value={stats.categoriesWithProducts} color="bg-orange-50" desc="Categories containing products" tooltip="Contains one or more products" filterKey="withProducts" />
+                <StatCard icon={<AlertTriangle size={18} className="text-red-600" />} label="Empty" value={stats.emptyCategories} color="bg-red-50" desc="No products assigned" tooltip="No products assigned" filterKey="empty" />
+                <StatCard icon={<Package size={18} className="text-indigo-600" />} label="Total Products" value={stats.productsAssigned} color="bg-indigo-50" desc="Across all categories" tooltip="Products across all categories" filterKey="all" onClick={() => router.push('/admin/products')} />
+                <StatCard icon={<Calendar size={18} className="text-cyan-600" />} label="This Month" value={stats.thisMonthCategories} color="bg-cyan-50" desc="New categories this month" tooltip="Created during current month" filterKey="thisMonth" />
+              </>
+            )}
         </div>
 
         {/* Active filter banner */}
         {activeFilterLabel && (
           <div className="flex items-center gap-3 bg-gray-900 text-white px-4 py-2.5 rounded-xl mb-4 text-sm">
             <span className="font-medium">Filtering: {activeFilterLabel}</span>
-            <span className="text-gray-400">({filteredCategories.length} results)</span>
+            <span className="text-gray-400">({categories.length} results)</span>
             <button onClick={() => setCardFilter('all')} className="ml-auto p-1 hover:bg-white/10 rounded-lg"><X size={14} /></button>
           </div>
         )}
 
-        {/* Search & Filters */}
+        {/* Search & Sort */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Search categories by name, slug, or description..." value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder="Search categories by name, slug, or description..." value={search} onChange={e => handleSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400" />
             </div>
             <div className="flex flex-wrap gap-2">
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:ring-2 focus:ring-gray-900/10">
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Hidden</option>
-                <option value="empty">Empty</option>
-                <option value="featured">With Products</option>
-              </select>
               <select value={`${sortField}-${sortOrder}`} onChange={e => { const [f, o] = e.target.value.split('-'); setSortField(f as SortField); setSortOrder(o as SortOrder); }}
                 className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:ring-2 focus:ring-gray-900/10">
                 <option value="displayOrder-asc">Display Order</option>
                 <option value="name-asc">Name A-Z</option>
                 <option value="name-desc">Name Z-A</option>
-                <option value="products-desc">Most Products</option>
                 <option value="createdAt-desc">Newest</option>
                 <option value="createdAt-asc">Oldest</option>
               </select>
@@ -397,8 +395,9 @@ export default function AdminCategoriesPage() {
             <div className="flex-1">Category</div>
             <div className="hidden md:flex items-center gap-4">
               <span className="w-16 text-center">Products</span>
-              <span className="w-12 text-center">Subs</span>
-              <span className="w-16 text-center">Status</span>
+              {!showTree && <span className="w-16 text-center">Status</span>}
+              {showTree && <span className="w-12 text-center">Subs</span>}
+              {showTree && <span className="w-16 text-center">Status</span>}
             </div>
             <div className="w-8" />
           </div>
@@ -417,18 +416,22 @@ export default function AdminCategoriesPage() {
                 </div>
               ))}
             </div>
-          ) : filteredCategories.length === 0 ? (
+          ) : categories.length === 0 ? (
             <div className="py-20 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><FolderTree size={24} className="text-gray-400" /></div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">No categories found</h3>
-              <p className="text-sm text-gray-500 mb-4">{search || statusFilter !== 'all' || cardFilter !== 'all' ? 'Try adjusting your filters' : 'Get started by creating your first category'}</p>
-              {!search && statusFilter === 'all' && cardFilter === 'all' && (
+              <p className="text-sm text-gray-500 mb-4">{search || cardFilter !== 'all' ? 'Try adjusting your filters' : 'Get started by creating your first category'}</p>
+              {!search && cardFilter === 'all' && (
                 <Link href="/admin/categories/new" className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800"><Plus size={16} /> Add Category</Link>
               )}
             </div>
-          ) : (
+          ) : showTree ? (
             <div className="divide-y divide-gray-50">
               {topLevel.map(cat => <CategoryRow key={cat.id} cat={cat} level={0} />)}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {categories.map(cat => <FlatCategoryRow key={cat.id} cat={cat} />)}
             </div>
           )}
         </div>

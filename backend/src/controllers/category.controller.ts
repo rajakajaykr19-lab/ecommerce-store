@@ -28,7 +28,7 @@ export const getCategoryDashboardStats = async (req: AuthRequest, res: Response,
       prisma.product.count(),
       prisma.category.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.$queryRaw`SELECT COUNT(*)::int as count FROM "Category" c WHERE EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c.id)`,
-      prisma.$queryRaw`SELECT COUNT(*)::int as count FROM "Category" c WHERE NOT EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c.id) AND NOT EXISTS (SELECT 1 FROM "Category" ch WHERE ch."parentId" = c.id)`,
+      prisma.$queryRaw`SELECT COUNT(*)::int as count FROM "Category" c WHERE NOT EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c.id)`,
     ]);
 
     res.json({
@@ -58,9 +58,7 @@ export const getCategoriesEnhanced = async (req: AuthRequest, res: Response, nex
       search,
       status,
       parentId,
-      featured,
-      empty,
-      recent,
+      dashboardFilter,
       sort = 'displayOrder',
       order = 'asc',
     } = req.query as Record<string, string>;
@@ -76,15 +74,24 @@ export const getCategoriesEnhanced = async (req: AuthRequest, res: Response, nex
     }
 
     if (status === 'active') where.isActive = true;
-    if (status === 'inactive') where.isActive = false;
+    else if (status === 'inactive') where.isActive = false;
 
     if (parentId === 'none') where.parentId = null;
     else if (parentId) where.parentId = parentId;
 
-    if (recent === 'true') {
-      const daysAgo = new Date();
-      daysAgo.setDate(daysAgo.getDate() - 30);
-      where.createdAt = { gte: daysAgo };
+    if (dashboardFilter === 'parent') {
+      where.parentId = null;
+    } else if (dashboardFilter === 'subcategory') {
+      where.parentId = { not: null };
+    } else if (dashboardFilter === 'active') {
+      where.isActive = true;
+    } else if (dashboardFilter === 'hidden') {
+      where.isActive = false;
+    } else if (dashboardFilter === 'thisMonth') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      where.createdAt = { gte: startOfMonth };
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -109,7 +116,7 @@ export const getCategoriesEnhanced = async (req: AuthRequest, res: Response, nex
           parent: { select: { id: true, name: true, slug: true } },
           children: {
             select: {
-              id: true, name: true, slug: true, image: true, isActive: true,
+              id: true, name: true, slug: true, image: true, isActive: true, parentId: true,
               _count: { select: { products: true, children: true } },
             },
             orderBy: { displayOrder: 'asc' },
@@ -119,13 +126,12 @@ export const getCategoriesEnhanced = async (req: AuthRequest, res: Response, nex
       prisma.category.count({ where }),
     ]);
 
+    // Server-side filtering for product-count-based filters
     let filtered = categories;
-
-    if (featured === 'true') {
-      filtered = filtered.filter(cat => cat._count.products > 0);
-    }
-    if (empty === 'true') {
-      filtered = filtered.filter(cat => cat._count.products === 0 && cat._count.children === 0);
+    if (dashboardFilter === 'withProducts') {
+      filtered = categories.filter(cat => cat._count.products > 0);
+    } else if (dashboardFilter === 'empty') {
+      filtered = categories.filter(cat => cat._count.products === 0);
     }
 
     const categoriesWithHealth = filtered.map((cat) => {
@@ -145,8 +151,8 @@ export const getCategoriesEnhanced = async (req: AuthRequest, res: Response, nex
       pagination: {
         page: parseInt(page),
         limit: take,
-        total,
-        totalPages: Math.ceil(total / take),
+        total: dashboardFilter === 'withProducts' || dashboardFilter === 'empty' ? filtered.length : total,
+        totalPages: Math.ceil((dashboardFilter === 'withProducts' || dashboardFilter === 'empty' ? filtered.length : total) / take),
       },
     });
   } catch (error) {
