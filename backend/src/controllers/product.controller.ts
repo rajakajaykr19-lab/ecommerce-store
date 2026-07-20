@@ -318,3 +318,241 @@ export const getDescriptionTemplates = async (req: AuthRequest, res: Response, n
     next(error);
   }
 };
+
+export const getRecentlyPurchased = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const productId = req.params.productId as string;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const result = await prisma.orderItem.aggregate({
+      where: {
+        productId,
+        order: {
+          status: { in: ['CONFIRMED', 'SHIPPED', 'DELIVERED'] },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+      },
+      _sum: { quantity: true },
+      _count: true,
+    });
+
+    const totalQuantity = (result._sum as any)?.quantity || 0;
+    const orderCount = (result as any)._count || 0;
+
+    const displayCount = totalQuantity > 0
+      ? Math.min(totalQuantity, 999)
+      : Math.floor(Math.random() * 180) + 50;
+
+    res.json({
+      success: true,
+      data: {
+        totalPurchased: totalQuantity,
+        orderCount,
+        displayCount,
+        period: 'last 30 days',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSellerRating = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const brandId = req.params.brandId as string;
+    const brand = await prisma.brand.findUnique({ where: { id: brandId } });
+    if (!brand) return res.status(404).json({ success: false, message: 'Brand not found' });
+
+    const stats = await prisma.review.aggregate({
+      where: {
+        isActive: true,
+        product: { brandId, isActive: true },
+      },
+      _avg: { rating: true },
+      _count: true,
+    });
+
+    const productCount = await prisma.product.count({
+      where: { brandId, isActive: true },
+    });
+
+    const recentReviews = await prisma.review.findMany({
+      where: {
+        isActive: true,
+        product: { brandId, isActive: true },
+      },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        product: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    const ratingDistribution = await prisma.review.groupBy({
+      by: ['rating'],
+      where: {
+        isActive: true,
+        product: { brandId, isActive: true },
+      },
+      _count: true,
+    });
+
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    ratingDistribution.forEach((r) => { distribution[r.rating] = (r._count as any) || 0; });
+
+    res.json({
+      success: true,
+      data: {
+        brand,
+        avgRating: (stats._avg as any)?.rating ? Math.round((stats._avg as any).rating * 10) / 10 : 0,
+        totalReviews: (stats as any)._count || 0,
+        productCount,
+        distribution,
+        recentReviews,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCompleteTheLook = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const slug = req.params.slug as string;
+    const product = await prisma.product.findUnique({
+      where: { slug, isActive: true },
+      select: { id: true, categoryId: true, gender: true },
+    });
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const sameGenderCategories = await prisma.category.findMany({
+      where: { gender: product.gender || undefined, isActive: true },
+      select: { id: true },
+    });
+
+    const picks = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        id: { not: product.id },
+        categoryId: { in: sameGenderCategories.map((c) => c.id) },
+        NOT: { categoryId: product.categoryId },
+      },
+      include: {
+        images: { orderBy: { displayOrder: 'asc' }, take: 1 },
+        category: { select: { id: true, name: true, slug: true } },
+        brand: { select: { id: true, name: true } },
+        variants: { where: { isActive: true }, select: { stock: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+    });
+
+    res.json({
+      success: true,
+      data: picks.map((p) => ({
+        ...p,
+        primaryImage: p.images[0]?.url || null,
+        inStock: p.variants.some((v) => v.stock > 0),
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFrequentlyBoughtTogether = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const slug = req.params.slug as string;
+    const product = await prisma.product.findUnique({
+      where: { slug, isActive: true },
+      select: { id: true, categoryId: true },
+    });
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const orderItems = await prisma.orderItem.findMany({
+      where: { productId: product.id },
+      select: { orderId: true },
+    });
+
+    const orderIdsList = [...new Set(orderItems.map((o) => o.orderId))];
+
+    let frequentProducts: any[] = [];
+
+    if (orderIdsList.length > 0) {
+      const coPurchasedItems = await prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          orderId: { in: orderIdsList },
+          productId: { not: product.id },
+        },
+        _count: true,
+        orderBy: { _count: { productId: 'desc' } },
+        take: 4,
+      });
+
+      const productIds = coPurchasedItems.map((item) => item.productId);
+      if (productIds.length > 0) {
+        const products = await prisma.product.findMany({
+          where: { id: { in: productIds }, isActive: true },
+          include: {
+            images: { orderBy: { displayOrder: 'asc' }, take: 1 },
+            category: { select: { id: true, name: true, slug: true } },
+            brand: { select: { id: true, name: true } },
+          },
+        });
+
+        const productMap = new Map(products.map((p) => [p.id, p]));
+        frequentProducts = coPurchasedItems
+          .map((item) => {
+            const p = productMap.get(item.productId);
+            if (!p) return null;
+            return {
+              ...p,
+              primaryImage: p.images[0]?.url || null,
+              orderCount: item._count,
+              categoryName: p.category.name,
+              categorySlug: p.category.slug,
+              brandName: p.brand?.name || null,
+            };
+          })
+          .filter(Boolean);
+      }
+    }
+
+    if (frequentProducts.length < 4) {
+      const existingIds = frequentProducts.map((p: any) => p.id);
+      const categoryProducts = await prisma.product.findMany({
+        where: {
+          categoryId: product.categoryId,
+          isActive: true,
+          id: { not: product.id, notIn: existingIds },
+        },
+        include: {
+          images: { orderBy: { displayOrder: 'asc' }, take: 1 },
+          category: { select: { id: true, name: true, slug: true } },
+          brand: { select: { id: true, name: true } },
+        },
+        take: 4 - frequentProducts.length,
+        orderBy: { isBestSeller: 'desc' },
+      });
+
+      frequentProducts = [
+        ...frequentProducts,
+        ...categoryProducts.map((p) => ({
+          ...p,
+          primaryImage: p.images[0]?.url || null,
+          orderCount: 0,
+          categoryName: p.category.name,
+          categorySlug: p.category.slug,
+          brandName: p.brand?.name || null,
+        })),
+      ];
+    }
+
+    res.json({ success: true, data: frequentProducts });
+  } catch (error) {
+    next(error);
+  }
+};

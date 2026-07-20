@@ -162,6 +162,7 @@ model Product {
   relatedProducts RelatedProduct[] @relation("RelatedProductSource")
   relatedTo       RelatedProduct[] @relation("RelatedProductTarget")
   attributeValues ProductAttributeValue[]
+  questions       ProductQuestion[]
 
   @@index([slug])
   @@index([categoryId])
@@ -655,4 +656,23 @@ model DescriptionTemplate {
 
   @@index([categoryId])
   @@index([isActive])
+}
+
+model ProductQuestion {
+  id          String    @id @default(uuid())
+  productId   String
+  userId      String?
+  question    String
+  answer      String?
+  answeredBy  String?
+  askedByName String
+  status      String    @default("PENDING")
+  upvotes     Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([status])
 }

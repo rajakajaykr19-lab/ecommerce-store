@@ -112,6 +112,34 @@ class ApiClient {
     return this.request(`/products/description-templates/${categoryId}`);
   }
 
+  async getRecentlyPurchased(productId: string) {
+    return this.request(`/products/recently-purchased/${productId}`);
+  }
+
+  async getSellerRating(brandId: string) {
+    return this.request(`/products/seller-rating/${brandId}`);
+  }
+
+  async getCompleteTheLook(slug: string) {
+    return this.request(`/products/look/${slug}`);
+  }
+
+  async getFrequentlyBoughtTogether(slug: string) {
+    return this.request(`/products/together/${slug}`);
+  }
+
+  async getQuestions(productId: string, page = 1) {
+    return this.request(`/questions/product/${productId}?page=${page}`);
+  }
+
+  async askQuestion(productId: string, question: string) {
+    return this.request(`/questions/product/${productId}`, { method: 'POST', body: { question } });
+  }
+
+  async upvoteQuestion(id: string) {
+    return this.request(`/questions/${id}/upvote`, { method: 'POST' });
+  }
+
   // Cart
   async getCart() {
     return this.request('/cart');
