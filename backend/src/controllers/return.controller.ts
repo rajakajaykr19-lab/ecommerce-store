@@ -4,6 +4,7 @@ import prisma from '../utils/prisma';
 import { AuthRequest } from '../types';
 import { AppError } from '../middleware/errorHandler';
 import { generateOrderNumber } from '../utils/helpers';
+import { sendReturnRequestNotification, sendReturnStatusUpdate } from '../services/email.service';
 
 const createReturnSchema = z.object({
   orderNumber: z.string().min(1),
@@ -78,6 +79,11 @@ export const createReturnRequest = async (req: AuthRequest, res: Response, next:
       data: { orderId: order.id, status: 'RETURNED', note: `Return requested: ${returnNumber}`, changedBy: req.user!.email },
     });
 
+    const orderWithUser = await prisma.order.findUnique({ where: { id: order.id }, include: { user: true, items: true } });
+    if (orderWithUser?.user) {
+      sendReturnRequestNotification(orderWithUser, orderWithUser.user, returnRequest).catch(console.error);
+    }
+
     res.status(201).json({ success: true, message: 'Return request created', data: returnRequest });
   } catch (error) {
     next(error);
@@ -103,7 +109,7 @@ export const getReturnRequests = async (req: AuthRequest, res: Response, next: N
       ];
     }
 
-    const [returns, total] = await Promise.all([
+    const [returns, total, totalStats, requestedStats, approvedStats, rejectedStats] = await Promise.all([
       prisma.return.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
         include: {
@@ -112,6 +118,10 @@ export const getReturnRequests = async (req: AuthRequest, res: Response, next: N
         },
       }),
       prisma.return.count({ where }),
+      prisma.return.count(),
+      prisma.return.count({ where: { status: 'REQUESTED' } }),
+      prisma.return.count({ where: { status: 'APPROVED' } }),
+      prisma.return.count({ where: { status: 'REJECTED' } }),
     ]);
 
     const returnsWithUser = await Promise.all(returns.map(async (r) => {
@@ -122,6 +132,7 @@ export const getReturnRequests = async (req: AuthRequest, res: Response, next: N
     res.json({
       success: true, data: returnsWithUser,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      stats: { total: totalStats, requested: requestedStats, approved: approvedStats, rejected: rejectedStats },
     });
   } catch (error) {
     next(error);
@@ -175,6 +186,11 @@ export const updateReturnStatus = async (req: AuthRequest, res: Response, next: 
     await prisma.orderStatusHistory.create({
       data: { orderId: returnRequest.orderId, status: 'RETURNED', note: `Return status: ${body.status}`, changedBy: req.user!.email },
     });
+
+    const orderWithUser = await prisma.order.findUnique({ where: { id: returnRequest.orderId }, include: { user: true, items: true } });
+    if (orderWithUser?.user) {
+      sendReturnStatusUpdate(orderWithUser, orderWithUser.user, updated, body.status).catch(console.error);
+    }
 
     res.json({ success: true, message: 'Return updated', data: updated });
   } catch (error) {

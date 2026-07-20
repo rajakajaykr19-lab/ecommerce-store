@@ -58,7 +58,7 @@ export interface CategoryDashboardStats {
   totalSubcategories: number;
   activeCategories: number;
   hiddenCategories: number;
-  featuredCategories: number;
+  categoriesWithProducts: number;
   emptyCategories: number;
   productsAssigned: number;
   thisMonthCategories: number;

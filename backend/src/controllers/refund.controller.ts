@@ -4,6 +4,7 @@ import prisma from '../utils/prisma';
 import { AuthRequest } from '../types';
 import { AppError } from '../middleware/errorHandler';
 import { generateOrderNumber } from '../utils/helpers';
+import { sendRefundCompleted } from '../services/email.service';
 
 const createRefundSchema = z.object({
   orderId: z.string().uuid(),
@@ -70,17 +71,24 @@ export const getRefunds = async (req: AuthRequest, res: Response, next: NextFunc
       ];
     }
 
-    const [refunds, total] = await Promise.all([
+    const [refunds, total, totalStats, pendingStats, processingStats, completedStats, failedStats, totalAmount] = await Promise.all([
       prisma.refund.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
         include: { order: { include: { user: { select: { id: true, name: true, email: true } }, items: true } } },
       }),
       prisma.refund.count({ where }),
+      prisma.refund.count(),
+      prisma.refund.count({ where: { status: 'PENDING' } }),
+      prisma.refund.count({ where: { status: 'PROCESSING' } }),
+      prisma.refund.count({ where: { status: 'COMPLETED' } }),
+      prisma.refund.count({ where: { status: 'FAILED' } }),
+      prisma.refund.aggregate({ _sum: { amount: true }, where: { status: 'COMPLETED' } }),
     ]);
 
     res.json({
       success: true, data: refunds,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      stats: { total: totalStats, pending: pendingStats, processing: processingStats, completed: completedStats, failed: failedStats, totalAmount: totalAmount._sum.amount || 0 },
     });
   } catch (error) {
     next(error);
@@ -129,6 +137,14 @@ export const updateRefundStatus = async (req: AuthRequest, res: Response, next: 
     }
 
     const updated = await prisma.refund.update({ where: { id }, data: updateData });
+
+    if (body.status === 'COMPLETED') {
+      const orderWithUser = await prisma.order.findUnique({ where: { id: refund.orderId }, include: { user: true, items: true } });
+      if (orderWithUser?.user) {
+        sendRefundCompleted(orderWithUser, orderWithUser.user, updated).catch(console.error);
+      }
+    }
+
     res.json({ success: true, message: 'Refund updated', data: updated });
   } catch (error) {
     next(error);

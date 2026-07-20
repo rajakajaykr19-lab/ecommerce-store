@@ -73,14 +73,16 @@ export default function AdminRefundsPage() {
   const fetchStats = async () => {
     try {
       const res = await api.getAdminRefunds({ page: '1', limit: '1' });
-      setStats({
-        total: res.data?.total || 0,
-        pending: res.data?.pending || 0,
-        processing: res.data?.processing || 0,
-        completed: res.data?.completed || 0,
-        failed: res.data?.failed || 0,
-        totalAmount: res.data?.totalAmount || 0,
-      });
+      if (res.stats) {
+        setStats({
+          total: res.stats.total || 0,
+          pending: res.stats.pending || 0,
+          processing: res.stats.processing || 0,
+          completed: res.stats.completed || 0,
+          failed: res.stats.failed || 0,
+          totalAmount: res.stats.totalAmount || 0,
+        });
+      }
     } catch {
       // Stats endpoint may not exist yet
     }

@@ -4,6 +4,7 @@ import prisma from '../utils/prisma';
 import { AuthRequest } from '../types';
 import { AppError } from '../middleware/errorHandler';
 import { generateOrderNumber } from '../utils/helpers';
+import { calculateGST } from '../utils/gstCalculator';
 import { sendOrderConfirmation, sendOrderStatusUpdate } from '../services/email.service';
 
 const createOrderSchema = z.object({
@@ -52,6 +53,10 @@ export const createOrder = async (req: AuthRequest, res: Response, next: NextFun
       quantity: number;
       total: number;
       image: string | null;
+      taxableValue: number;
+      cgstAmount: number;
+      sgstAmount: number;
+      gstRate: number;
     }> = [];
 
     for (const item of data.items) {
@@ -74,6 +79,9 @@ export const createOrder = async (req: AuthRequest, res: Response, next: NextFun
       const itemTotal = Number(price) * item.quantity;
       subtotal += itemTotal;
 
+      const gstRate = product.gstRate || 12;
+      const { taxableValue, cgst, sgst } = calculateGST(Number(price), item.quantity, 0, gstRate);
+
       orderItemsData.push({
         productId: product.id,
         variantId: item.variantId || null,
@@ -85,6 +93,10 @@ export const createOrder = async (req: AuthRequest, res: Response, next: NextFun
         quantity: item.quantity,
         total: itemTotal,
         image: product.images[0]?.url || null,
+        taxableValue,
+        cgstAmount: cgst,
+        sgstAmount: sgst,
+        gstRate,
       });
     }
 

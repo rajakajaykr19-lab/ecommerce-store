@@ -8,6 +8,9 @@ import { generateSlug } from '../utils/helpers';
 // ============ DASHBOARD STATS ============
 export const getCategoryDashboardStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const [
       totalCategories,
       totalSubcategories,
@@ -15,23 +18,18 @@ export const getCategoryDashboardStats = async (req: AuthRequest, res: Response,
       hiddenCategories,
       productsAssigned,
       thisMonthCategories,
+      catsWithProducts,
+      emptyCategories,
     ] = await Promise.all([
       prisma.category.count({ where: { parentId: null } }),
       prisma.category.count({ where: { parentId: { not: null } } }),
       prisma.category.count({ where: { isActive: true } }),
       prisma.category.count({ where: { isActive: false } }),
       prisma.product.count(),
-      prisma.category.count({
-        where: { createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } },
-      }),
+      prisma.category.count({ where: { createdAt: { gte: startOfMonth } } }),
+      prisma.$queryRaw`SELECT COUNT(*)::int as count FROM "Category" c WHERE EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c.id)`,
+      prisma.$queryRaw`SELECT COUNT(*)::int as count FROM "Category" c WHERE NOT EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c.id) AND NOT EXISTS (SELECT 1 FROM "Category" ch WHERE ch."parentId" = c.id)`,
     ]);
-
-    const allCats = await prisma.category.findMany({
-      select: { id: true, _count: { select: { products: true, children: true } } },
-    });
-
-    const emptyCategories = allCats.filter(c => c._count.products === 0 && c._count.children === 0).length;
-    const featuredCategories = allCats.filter(c => c._count.products > 5).length;
 
     res.json({
       success: true,
@@ -40,8 +38,8 @@ export const getCategoryDashboardStats = async (req: AuthRequest, res: Response,
         totalSubcategories,
         activeCategories,
         hiddenCategories,
-        featuredCategories,
-        emptyCategories,
+        categoriesWithProducts: Number((catsWithProducts as any)[0]?.count ?? 0),
+        emptyCategories: Number((emptyCategories as any)[0]?.count ?? 0),
         productsAssigned,
         thisMonthCategories,
       },

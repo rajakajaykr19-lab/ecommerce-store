@@ -3,16 +3,19 @@ import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../types';
 import { AppError } from '../middleware/errorHandler';
+import { sendOrderShipped } from '../services/email.service';
 
 const createShipmentSchema = z.object({
   orderId: z.string().uuid(),
-  courierPartner: z.string().min(1),
+  courierPartner: z.string().min(1).optional(),
+  courierPartnerId: z.string().min(1).optional(),
   trackingNumber: z.string().min(1),
   trackingUrl: z.string().optional(),
   weight: z.number().positive().optional(),
   dimensions: z.string().optional(),
   estimatedDelivery: z.string().optional(),
-});
+  estimatedDeliveryDate: z.string().optional(),
+}).refine((data) => data.courierPartner || data.courierPartnerId, { message: 'courierPartner or courierPartnerId is required' });
 
 const updateShipmentSchema = z.object({
   status: z.string().optional(),
@@ -26,6 +29,8 @@ const updateShipmentSchema = z.object({
 export const createShipment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = createShipmentSchema.parse(req.body);
+    const courierPartner = data.courierPartner || data.courierPartnerId!;
+    const estimatedDeliveryDate = data.estimatedDelivery || data.estimatedDeliveryDate;
 
     const order = await prisma.order.findUnique({ where: { id: data.orderId } });
     if (!order) throw new AppError('Order not found', 404);
@@ -44,18 +49,18 @@ export const createShipment = async (req: AuthRequest, res: Response, next: Next
       const newShipment = await tx.shipment.create({
         data: {
           orderId: data.orderId,
-          courierPartner: data.courierPartner,
+          courierPartner,
           trackingNumber: data.trackingNumber,
           trackingUrl: data.trackingUrl || null,
           weight: data.weight || null,
           dimensions: data.dimensions || null,
-          estimatedDelivery: data.estimatedDelivery ? new Date(data.estimatedDelivery) : null,
+          estimatedDelivery: estimatedDeliveryDate ? new Date(estimatedDeliveryDate) : null,
           status: 'LABEL_CREATED',
         },
       });
 
       const orderUpdate: any = {
-        courierPartner: data.courierPartner,
+        courierPartner,
         trackingNumber: data.trackingNumber,
       };
       if (order.status !== 'SHIPPED') {
@@ -67,7 +72,7 @@ export const createShipment = async (req: AuthRequest, res: Response, next: Next
         data: {
           orderId: data.orderId,
           status: 'SHIPPED',
-          note: `Shipment created with ${data.courierPartner} - ${data.trackingNumber}`,
+          note: `Shipment created with ${courierPartner} - ${data.trackingNumber}`,
           changedBy: req.user?.email || 'system',
         },
       });
@@ -76,6 +81,11 @@ export const createShipment = async (req: AuthRequest, res: Response, next: Next
     });
 
     res.status(201).json({ success: true, message: 'Shipment created', data: shipment });
+
+    const orderWithUser = await prisma.order.findUnique({ where: { id: data.orderId }, include: { user: true, items: true } });
+    if (orderWithUser?.user) {
+      sendOrderShipped(orderWithUser, orderWithUser.user, shipment).catch(console.error);
+    }
   } catch (error) {
     next(error);
   }
@@ -83,12 +93,22 @@ export const createShipment = async (req: AuthRequest, res: Response, next: Next
 
 export const getShipments = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { page = '1', limit = '20', status, courierPartner, search } = req.query as any;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { page = '1', limit = '20', pageSize, status, courierPartner, courierPartnerId, search, startDate, endDate } = req.query as any;
+    const effectiveLimit = parseInt(pageSize || limit);
+    const skip = (parseInt(page) - 1) * effectiveLimit;
     const where: any = {};
 
     if (status) where.status = status;
-    if (courierPartner) where.courierPartner = courierPartner;
+    if (courierPartner || courierPartnerId) where.courierPartner = courierPartner || courierPartnerId;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) {
+        const to = new Date(endDate);
+        to.setHours(23, 59, 59, 999);
+        where.createdAt.lte = to;
+      }
+    }
     if (search) {
       where.OR = [
         { trackingNumber: { contains: search, mode: 'insensitive' } },
@@ -100,7 +120,7 @@ export const getShipments = async (req: AuthRequest, res: Response, next: NextFu
       prisma.shipment.findMany({
         where,
         skip,
-        take: parseInt(limit),
+        take: effectiveLimit,
         orderBy: { createdAt: 'desc' },
         include: {
           order: {
@@ -116,13 +136,11 @@ export const getShipments = async (req: AuthRequest, res: Response, next: NextFu
 
     res.json({
       success: true,
-      data: shipments,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages: Math.ceil(total / parseInt(limit)),
-      },
+      shipments,
+      total,
+      page: parseInt(page),
+      pageSize: effectiveLimit,
+      totalPages: Math.ceil(total / effectiveLimit),
     });
   } catch (error) {
     next(error);

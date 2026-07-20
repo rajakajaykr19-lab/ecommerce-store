@@ -645,7 +645,7 @@ export const getOrderDashboardStats = async (req: AuthRequest, res: Response, ne
         where: { paymentStatus: 'SUCCESS', createdAt: { gte: todayStart, lte: todayEnd } },
       }),
       prisma.order.count({ where: { paymentStatus: 'REFUNDED' } }),
-      prisma.order.count({ where: { status: { in: ['REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED'] } } }),
+      prisma.return.count({ where: { status: { notIn: ['RETURNED', 'REFUNDED', 'REJECTED'] } } }),
     ]);
 
     const statusMap: Record<string, number> = {
@@ -666,9 +666,16 @@ export const getOrderDashboardStats = async (req: AuthRequest, res: Response, ne
       success: true,
       data: {
         totalOrders,
-        ordersByStatus: statusMap,
+        pendingOrders: statusMap.PENDING || 0,
+        confirmedOrders: statusMap.CONFIRMED || 0,
+        processingOrders: statusMap.PROCESSING || 0,
+        shippedOrders: statusMap.SHIPPED || 0,
+        outForDeliveryOrders: statusMap.OUT_FOR_DELIVERY || 0,
+        deliveredOrders: statusMap.DELIVERED || 0,
+        cancelledOrders: statusMap.CANCELLED || 0,
+        returnedOrders: statusMap.RETURNED || 0,
         totalRevenue: totalRevenue._sum.total || 0,
-        todayOrdersCount,
+        todayOrders: todayOrdersCount,
         todayRevenue: todayRevenue._sum.total || 0,
         pendingRefunds,
         activeReturns,
