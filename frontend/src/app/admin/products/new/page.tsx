@@ -194,9 +194,18 @@ export default function AdminCreateProductPage() {
   }, [form.tags, form.metaKeywords, form.name, form.categoryId, form.brandId, categories, brands]);
 
   const addBulkImages = () => {
-    const lines = bulkUrls.split(/\r?\n/).map((u) => u.trim()).filter(Boolean);
-    const valid = lines.filter((u) => (u.startsWith('http://') || u.startsWith('https://')) && !images.includes(u));
-    if (valid.length === 0) { toast.error('No valid URLs found'); return; }
+    const raw = bulkUrls.replace(/;/g, '\n').replace(/,\s*/g, '\n');
+    const lines = raw.split(/\r?\n|\t|\s+(?=https?:\/\/)/).map((u) => u.trim()).filter(Boolean);
+    const urls = lines.map((u) => {
+      if (u.match(/^https?:\/\//i)) return u;
+      if (u.match(/^www\./i)) return 'https://' + u;
+      return 'https://' + u;
+    });
+    const valid = urls.filter((u) => {
+      try { new URL(u); } catch { return false; }
+      return !images.includes(u);
+    });
+    if (valid.length === 0) { toast.error('No valid URLs found. Paste URLs separated by newlines.'); return; }
     setImages((prev) => [...prev, ...valid]);
     setBulkUrls('');
     toast.success(`${valid.length} image(s) added`);
@@ -664,9 +673,20 @@ export default function AdminCreateProductPage() {
         <Section title="Product Images" defaultOpen={false} badge={images.length > 0 ? `${images.length} images` : undefined}>
           <div className="space-y-4 pt-4">
             <div>
-              <label className={labelClass}>Paste Image URLs (one per line, then click Add)</label>
-              <textarea value={bulkUrls} onChange={(e) => setBulkUrls(e.target.value)} className={inputClass} rows={5} placeholder={"https://cdn.example.com/image1.jpg\nhttps://cdn.example.com/image2.jpg\nhttps://cdn.example.com/image3.jpg"} />
-              <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addBulkImages}><ImagePlus size={14} className="mr-1" /> Add All Images</Button>
+              <label className={labelClass}>Paste Image URLs</label>
+              <textarea
+                value={bulkUrls}
+                onChange={(e) => setBulkUrls(e.target.value)}
+                className={inputClass}
+                rows={6}
+                placeholder={"Paste any number of URLs below (one per line, or comma/semicolon separated):\nhttps://example.com/img1.jpg\nhttps://example.com/img2.jpg\nhttps://example.com/img3.jpg"}
+              />
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-gray-400">
+                  {bulkUrls.trim() ? `${bulkUrls.split(/\r?\n|\t|\s+(?=https?:\/\/)/).map((u) => u.trim()).filter(Boolean).length} URL(s) detected` : 'Supports newlines, commas, semicolons'}
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={addBulkImages}><ImagePlus size={14} className="mr-1" /> Add All Images</Button>
+              </div>
             </div>
             {images.length > 0 && (
               <div>
