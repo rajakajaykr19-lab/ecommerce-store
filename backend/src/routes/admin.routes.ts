@@ -57,6 +57,7 @@ router.delete('/banners/:id', admin.deleteBanner);
 
 // Orders
 router.get('/orders', admin.adminGetOrders);
+router.get('/orders/export', bulk.exportOrders);
 router.get('/orders/:id', admin.getOrderDetail);
 router.put('/orders/:id/status', admin.adminUpdateOrderStatus);
 router.put('/orders/:id/verify-payment', admin.adminVerifyPayment);
@@ -66,7 +67,6 @@ router.post('/orders/bulk/status', bulk.bulkUpdateStatus);
 router.post('/orders/bulk/confirm', bulk.bulkConfirmOrders);
 router.post('/orders/bulk/ship', bulk.bulkShipOrders);
 router.post('/orders/bulk/cancel', bulk.bulkCancelOrders);
-router.get('/orders/export', bulk.exportOrders);
 
 // Returns
 router.get('/returns', returns.getReturnRequests);
