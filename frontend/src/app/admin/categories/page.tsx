@@ -43,17 +43,19 @@ export default function AdminCategoriesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, catsRes, allCatsRes] = await Promise.all([
-        api.getCategoryDashboardStats(),
-        api.getAdminCategories({ limit: '200' }),
-        api.getAllCategoriesFlat(),
-      ]);
-      setStats(statsRes);
-      setCategories(catsRes.data || []);
-      setAllCategories(allCatsRes.data || []);
+      const catsRes = await api.getAdminCategories({ limit: '200' });
+      setCategories(catsRes.data || catsRes || []);
     } catch {
       toast.error('Failed to load categories');
     }
+    try {
+      const allCatsRes = await api.getAllCategoriesFlat();
+      setAllCategories(allCatsRes.data || allCatsRes || []);
+    } catch { /* optional */ }
+    try {
+      const statsRes = await api.getCategoryDashboardStats();
+      setStats(statsRes);
+    } catch { /* optional */ }
     setLoading(false);
   };
 
