@@ -120,18 +120,79 @@ export interface Order {
   subtotal: number; discount: number; shipping: number; tax: number;
   total: number; status: OrderStatus; paymentStatus: PaymentStatus;
   paymentMethod: string; paymentId?: string; trackingNumber?: string;
-  estimatedDelivery?: string; deliveredAt?: string; createdAt: string;
+  estimatedDelivery?: string; deliveredAt?: string; cancelledAt?: string;
+  cancelledBy?: string; cancellationReason?: string;
+  courierPartner?: string; customerNotes?: string; adminNotes?: string;
+  createdAt: string; updatedAt?: string;
   items: OrderItem[]; address: Address;
   statusHistory: OrderStatusHistory[];
-  user?: { id: string; name: string; email: string };
+  user?: { id: string; name: string; email: string; phone?: string };
   upiTxId?: string;
+  invoice?: Invoice;
+  returns?: Return[];
+  refunds?: Refund[];
+  shipment?: Shipment;
 }
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'REFUNDED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'REFUNDED';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
 
 export interface OrderStatusHistory {
-  id: string; status: OrderStatus; note?: string; createdAt: string;
+  id: string; status: OrderStatus; note?: string; changedBy?: string;
+  changedByUserId?: string; ipAddress?: string; createdAt: string;
+}
+
+export interface Return {
+  id: string; orderId: string; returnNumber: string; status: ReturnStatus;
+  reason: string; description?: string; adminNotes?: string;
+  refundAmount?: number; pickupDate?: string; deliveredBackAt?: string;
+  inspectedAt?: string; inspectedBy?: string; inspectionNotes?: string;
+  resolvedAt?: string; resolvedBy?: string;
+  createdAt: string; updatedAt?: string;
+  items: ReturnItem[];
+  order?: Order;
+}
+
+export interface ReturnItem {
+  id: string; returnId: string; orderItemId: string; productId: string;
+  quantity: number; reason?: string; condition?: string;
+}
+
+export type ReturnStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'PICKUP_SCHEDULED' | 'RETURNED' | 'UNDER_INSPECTION' | 'APPROVED_FOR_REFUND' | 'REFUNDED';
+
+export interface Refund {
+  id: string; orderId: string; refundNumber: string; amount: number;
+  status: RefundStatus; method: string; reason?: string;
+  transactionId?: string; processedAt?: string; completedAt?: string;
+  failedAt?: string; failureReason?: string; adminNotes?: string;
+  processedBy?: string; createdAt: string; updatedAt?: string;
+  order?: Order;
+}
+
+export type RefundStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+export interface Shipment {
+  id: string; orderId: string; courierPartner: string; trackingNumber: string;
+  trackingUrl?: string; pickupDate?: string; shipDate?: string;
+  estimatedDelivery?: string; actualDelivery?: string;
+  weight?: number; dimensions?: string; status: ShipmentStatus;
+  currentLocation?: string; createdAt: string; updatedAt?: string;
+  order?: Order;
+}
+
+export type ShipmentStatus = 'LABEL_CREATED' | 'PICKED_UP' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'RETURNED';
+
+export interface Invoice {
+  id: string; orderId: string; invoiceNumber: number;
+  pdfUrl?: string; createdAt: string;
+}
+
+export interface OrderDashboardStats {
+  totalOrders: number; pendingOrders: number; confirmedOrders: number;
+  processingOrders: number; shippedOrders: number; outForDeliveryOrders: number;
+  deliveredOrders: number; cancelledOrders: number; returnedOrders: number;
+  totalRevenue: number; pendingRefunds: number; activeReturns: number;
+  todayOrders: number; todayRevenue: number;
 }
 
 export interface Coupon {

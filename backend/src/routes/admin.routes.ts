@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { authenticate, authorizePermission } from '../middleware/auth';
 import * as admin from '../controllers/admin.controller';
+import * as returns from '../controllers/return.controller';
+import * as refunds from '../controllers/refund.controller';
+import * as shipments from '../controllers/shipment.controller';
+import * as bulk from '../controllers/bulkOrder.controller';
 
 const router = Router();
 
@@ -25,6 +29,7 @@ router.use(authorizePermission(
 
 // Dashboard
 router.get('/dashboard', admin.getDashboard);
+router.get('/orders/dashboard-stats', admin.getOrderDashboardStats);
 
 // Products
 router.get('/products', admin.adminGetProducts);
@@ -52,8 +57,34 @@ router.delete('/banners/:id', admin.deleteBanner);
 
 // Orders
 router.get('/orders', admin.adminGetOrders);
+router.get('/orders/:id', admin.getOrderDetail);
 router.put('/orders/:id/status', admin.adminUpdateOrderStatus);
 router.put('/orders/:id/verify-payment', admin.adminVerifyPayment);
+
+// Bulk Order Operations
+router.post('/orders/bulk/status', bulk.bulkUpdateStatus);
+router.post('/orders/bulk/confirm', bulk.bulkConfirmOrders);
+router.post('/orders/bulk/ship', bulk.bulkShipOrders);
+router.post('/orders/bulk/cancel', bulk.bulkCancelOrders);
+router.get('/orders/export', bulk.exportOrders);
+
+// Returns
+router.get('/returns', returns.getReturnRequests);
+router.get('/returns/:id', returns.getReturnById);
+router.put('/returns/:id/status', returns.updateReturnStatus);
+
+// Refunds
+router.get('/refunds', refunds.getRefunds);
+router.get('/refunds/:id', refunds.getRefundById);
+router.post('/refunds', refunds.createRefund);
+router.put('/refunds/:id/status', refunds.updateRefundStatus);
+
+// Shipments
+router.get('/shipments', shipments.getShipments);
+router.get('/shipments/:id', shipments.getShipmentById);
+router.post('/shipments', shipments.createShipment);
+router.put('/shipments/:id', shipments.updateShipment);
+router.get('/courier-partners', shipments.getCourierPartners);
 
 // Customers
 router.get('/customers', admin.adminGetCustomers);

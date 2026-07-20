@@ -6,6 +6,7 @@ import { AuthRequest } from '../types';
 import { AppError } from '../middleware/errorHandler';
 import { generateSlug, paginate } from '../utils/helpers';
 import { sendOrderStatusUpdate } from '../services/email.service';
+import { validateTransition } from '../utils/orderStateMachine';
 
 // ============ DASHBOARD ============
 export const getDashboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -485,14 +486,67 @@ export const deleteBanner = async (req: AuthRequest, res: Response, next: NextFu
 // ============ ORDERS (ADMIN) ============
 export const adminGetOrders = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { page = '1', limit = '20', status, search } = req.query as any;
+    const { page = '1', limit = '20', status, paymentStatus, paymentMethod, courierPartner, search, dateFrom, dateTo, sort = 'latest' } = req.query as any;
     const { skip, take, page: p, limit: l } = paginate(parseInt(page), parseInt(limit));
+
     const where: any = {};
+
     if (status) where.status = status;
-    if (search) where.OR = [{ orderNumber: { contains: search, mode: 'insensitive' } }, { user: { name: { contains: search, mode: 'insensitive' } } }];
+    if (paymentStatus) where.paymentStatus = paymentStatus;
+    if (paymentMethod) where.paymentMethod = paymentMethod;
+    if (courierPartner) where.courierPartner = { contains: courierPartner, mode: 'insensitive' };
+
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { trackingNumber: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { user: { phone: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        where.createdAt.lte = to;
+      }
+    }
+
+    let orderBy: any;
+    switch (sort) {
+      case 'oldest':
+        orderBy = { createdAt: 'asc' };
+        break;
+      case 'highest_amount':
+        orderBy = { total: 'desc' };
+        break;
+      case 'lowest_amount':
+        orderBy = { total: 'asc' };
+        break;
+      case 'latest':
+      default:
+        orderBy = { createdAt: 'desc' };
+        break;
+    }
 
     const [orders, total] = await Promise.all([
-      prisma.order.findMany({ where, skip, take, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, name: true, email: true } }, items: true, address: true } }),
+      prisma.order.findMany({
+        where,
+        skip,
+        take,
+        orderBy,
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+          items: true,
+          address: true,
+          statusHistory: { orderBy: { createdAt: 'desc' }, take: 1 },
+          shipment: true,
+        },
+      }),
       prisma.order.count({ where }),
     ]);
 
@@ -505,25 +559,152 @@ export const adminGetOrders = async (req: AuthRequest, res: Response, next: Next
 export const adminUpdateOrderStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const schema = z.object({ status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'REFUNDED']), note: z.string().optional(), trackingNumber: z.string().optional() });
+    const schema = z.object({
+      status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'RETURNED', 'REFUNDED']),
+      note: z.string().optional(),
+      trackingNumber: z.string().optional(),
+      courierPartner: z.string().optional(),
+      adminNotes: z.string().optional(),
+      customerNotes: z.string().optional(),
+      cancellationReason: z.string().optional(),
+    });
     const data = schema.parse(req.body);
 
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) throw new AppError('Order not found', 404);
 
+    if (!validateTransition(order.status, data.status)) {
+      throw new AppError(`Cannot transition from ${order.status} to ${data.status}`, 400);
+    }
+
     const updateData: any = { status: data.status };
     if (data.trackingNumber) updateData.trackingNumber = data.trackingNumber;
-    if (data.status === 'DELIVERED') updateData.deliveredAt = new Date();
+    if (data.courierPartner) updateData.courierPartner = data.courierPartner;
+    if (data.adminNotes) updateData.adminNotes = data.adminNotes;
+    if (data.customerNotes) updateData.customerNotes = data.customerNotes;
+
+    if (data.status === 'DELIVERED') {
+      updateData.deliveredAt = new Date();
+    }
+
+    if (data.status === 'CANCELLED') {
+      updateData.cancelledAt = new Date();
+      updateData.cancelledBy = req.user!.email;
+      updateData.cancellationReason = data.cancellationReason || data.note || 'Cancelled by admin';
+    }
 
     const updated = await prisma.order.update({ where: { id }, data: updateData });
-    await prisma.orderStatusHistory.create({ data: { orderId: id, status: data.status, note: data.note || `Status changed to ${data.status}`, changedBy: req.user!.email } });
+
+    await prisma.orderStatusHistory.create({
+      data: {
+        orderId: id,
+        status: data.status,
+        note: data.note || `Status changed to ${data.status}`,
+        changedBy: req.user!.email,
+        ipAddress: req.ip || req.socket.remoteAddress || null,
+        userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+      },
+    });
 
     const orderUser = await prisma.user.findUnique({ where: { id: order.userId } });
     if (orderUser) {
-      sendOrderStatusUpdate(order, orderUser, data.status).catch(console.error);
+      sendOrderStatusUpdate(updated, orderUser, data.status).catch(console.error);
     }
 
     res.json({ success: true, message: 'Order updated', data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOrderDashboardStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [
+      totalOrders,
+      ordersByStatus,
+      totalRevenue,
+      todayOrdersCount,
+      todayRevenue,
+      pendingRefunds,
+      activeReturns,
+    ] = await Promise.all([
+      prisma.order.count(),
+      prisma.order.groupBy({
+        by: ['status'],
+        _count: { status: true },
+      }),
+      prisma.order.aggregate({ _sum: { total: true }, where: { paymentStatus: 'SUCCESS' } }),
+      prisma.order.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
+      prisma.order.aggregate({
+        _sum: { total: true },
+        where: { paymentStatus: 'SUCCESS', createdAt: { gte: todayStart, lte: todayEnd } },
+      }),
+      prisma.order.count({ where: { paymentStatus: 'REFUNDED' } }),
+      prisma.order.count({ where: { status: { in: ['REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED'] } } }),
+    ]);
+
+    const statusMap: Record<string, number> = {
+      PENDING: 0,
+      CONFIRMED: 0,
+      PROCESSING: 0,
+      SHIPPED: 0,
+      OUT_FOR_DELIVERY: 0,
+      DELIVERED: 0,
+      CANCELLED: 0,
+      RETURNED: 0,
+    };
+    for (const entry of ordersByStatus) {
+      statusMap[entry.status] = entry._count.status;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalOrders,
+        ordersByStatus: statusMap,
+        totalRevenue: totalRevenue._sum.total || 0,
+        todayOrdersCount,
+        todayRevenue: todayRevenue._sum.total || 0,
+        pendingRefunds,
+        activeReturns,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOrderDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+
+    const order = await prisma.order.findFirst({
+      where: { OR: [{ id }, { orderNumber: id }] },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true } },
+        items: {
+          include: {
+            product: { select: { id: true, name: true, slug: true, images: { take: 1, orderBy: { displayOrder: 'asc' } } } },
+            variant: true,
+          },
+        },
+        address: true,
+        statusHistory: { orderBy: { createdAt: 'desc' } },
+        invoice: true,
+        returns: true,
+        refunds: true,
+        shipment: true,
+      },
+    });
+
+    if (!order) throw new AppError('Order not found', 404);
+
+    res.json({ success: true, data: order });
   } catch (error) {
     next(error);
   }

@@ -4,7 +4,7 @@ import prisma from '../utils/prisma';
 import { AuthRequest } from '../types';
 import { AppError } from '../middleware/errorHandler';
 import { generateOrderNumber } from '../utils/helpers';
-import { sendOrderConfirmation } from '../services/email.service';
+import { sendOrderConfirmation, sendOrderStatusUpdate } from '../services/email.service';
 
 const createOrderSchema = z.object({
   addressId: z.string().uuid(),
@@ -57,13 +57,14 @@ export const createOrder = async (req: AuthRequest, res: Response, next: NextFun
     for (const item of data.items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId, isActive: true },
-        include: { variants: { where: { id: item.variantId || undefined } } },
+        include: { variants: { where: { id: item.variantId || undefined } }, images: { take: 1, orderBy: { displayOrder: 'asc' } } },
       });
       if (!product) throw new AppError(`Product ${item.productId} not found`, 404);
 
       let price = product.salePrice || product.basePrice;
+      let variant = null;
       if (item.variantId) {
-        const variant = product.variants[0];
+        variant = product.variants[0];
         if (variant && variant.price) price = variant.price;
         if (variant && variant.stock < item.quantity) {
           throw new AppError(`Insufficient stock for ${product.name}`, 400);
@@ -78,12 +79,12 @@ export const createOrder = async (req: AuthRequest, res: Response, next: NextFun
         variantId: item.variantId || null,
         name: product.name,
         sku: product.sku,
-        size: null,
-        color: null,
+        size: variant?.size || null,
+        color: variant?.color || null,
         price,
         quantity: item.quantity,
         total: itemTotal,
-        image: null,
+        image: product.images[0]?.url || null,
       });
     }
 
@@ -240,13 +241,33 @@ export const cancelOrder = async (req: AuthRequest, res: Response, next: NextFun
       throw new AppError('Order cannot be cancelled at this stage', 400);
     }
 
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: { status: 'CANCELLED' },
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const cancelledOrder = await tx.order.update({
+        where: { id: order.id },
+        data: { status: 'CANCELLED' },
+      });
 
-    await prisma.orderStatusHistory.create({
-      data: { orderId: order.id, status: 'CANCELLED', note: 'Cancelled by customer' },
+      await tx.orderStatusHistory.create({
+        data: { orderId: order.id, status: 'CANCELLED', note: 'Cancelled by customer' },
+      });
+
+      const orderWithItems = await tx.order.findUnique({
+        where: { id: order.id },
+        include: { items: true },
+      });
+
+      if (orderWithItems) {
+        for (const item of orderWithItems.items) {
+          if (item.variantId) {
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: { stock: { increment: item.quantity } },
+            });
+          }
+        }
+      }
+
+      return cancelledOrder;
     });
 
     res.json({ success: true, message: 'Order cancelled', data: updated });

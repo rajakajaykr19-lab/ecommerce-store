@@ -55,3 +55,54 @@ export interface CloudinaryResult {
   height: number;
   format: string;
 }
+
+export type OrderStatusType = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'REFUNDED';
+
+export type PaymentStatusType = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+
+export type ReturnStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'PICKUP_SCHEDULED' | 'RETURNED' | 'UNDER_INSPECTION' | 'APPROVED_FOR_REFUND' | 'REFUNDED';
+
+export type RefundStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+export type ShipmentStatus = 'LABEL_CREATED' | 'PICKED_UP' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'RETURNED';
+
+export interface OrderFilters {
+  search?: string;
+  status?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  courierPartner?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  city?: string;
+  state?: string;
+  sort?: 'latest' | 'oldest' | 'highest_amount' | 'lowest_amount';
+  page?: string;
+  limit?: string;
+}
+
+export interface BulkOrderAction {
+  orderIds: string[];
+  action: 'confirm' | 'ship' | 'cancel' | 'status';
+  status?: string;
+  note?: string;
+  courierPartner?: string;
+  trackingNumbers?: Record<string, string>;
+}
+
+export interface OrderDashboardStats {
+  totalOrders: number;
+  pendingOrders: number;
+  confirmedOrders: number;
+  processingOrders: number;
+  shippedOrders: number;
+  outForDeliveryOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  returnedOrders: number;
+  totalRevenue: number;
+  pendingRefunds: number;
+  activeReturns: number;
+  todayOrders: number;
+  todayRevenue: number;
+}

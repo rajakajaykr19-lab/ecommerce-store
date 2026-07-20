@@ -426,6 +426,108 @@ class ApiClient {
     return this.request(`/admin/orders/${orderId}/verify-payment`, { method: 'PUT' });
   }
 
+  async getOrderDetail(orderId: string) {
+    return this.request(`/admin/orders/${orderId}`);
+  }
+
+  async getOrderDashboardStats() {
+    return this.request('/admin/orders/dashboard-stats');
+  }
+
+  // Bulk Order Operations
+  async bulkUpdateOrderStatus(orderIds: string[], status: string, note?: string) {
+    return this.request('/admin/orders/bulk/status', { method: 'POST', body: { orderIds, status, note } });
+  }
+
+  async bulkConfirmOrders(orderIds: string[]) {
+    return this.request('/admin/orders/bulk/confirm', { method: 'POST', body: { orderIds } });
+  }
+
+  async bulkShipOrders(orderIds: string[], courierPartner: string, trackingNumbers: Record<string, string>) {
+    return this.request('/admin/orders/bulk/ship', { method: 'POST', body: { orderIds, courierPartner, trackingNumbers } });
+  }
+
+  async bulkCancelOrders(orderIds: string[], reason?: string) {
+    return this.request('/admin/orders/bulk/cancel', { method: 'POST', body: { orderIds, reason } });
+  }
+
+  async exportOrders(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/orders/export${query}`);
+  }
+
+  // Returns
+  async getAdminReturns(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/returns${query}`);
+  }
+
+  async getReturnById(id: string) {
+    return this.request(`/admin/returns/${id}`);
+  }
+
+  async updateReturnStatus(id: string, data: any) {
+    return this.request(`/admin/returns/${id}/status`, { method: 'PUT', body: data });
+  }
+
+  async createReturnRequest(data: any) {
+    return this.request('/orders/returns/request', { method: 'POST', body: data });
+  }
+
+  async getCustomerReturns(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/orders/returns/list${query}`);
+  }
+
+  // Refunds
+  async getAdminRefunds(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/refunds${query}`);
+  }
+
+  async getRefundById(id: string) {
+    return this.request(`/admin/refunds/${id}`);
+  }
+
+  async createRefund(data: any) {
+    return this.request('/admin/refunds', { method: 'POST', body: data });
+  }
+
+  async updateRefundStatus(id: string, data: any) {
+    return this.request(`/admin/refunds/${id}/status`, { method: 'PUT', body: data });
+  }
+
+  // Shipments
+  async getAdminShipments(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/admin/shipments${query}`);
+  }
+
+  async getShipmentById(id: string) {
+    return this.request(`/admin/shipments/${id}`);
+  }
+
+  async createShipment(data: any) {
+    return this.request('/admin/shipments', { method: 'POST', body: data });
+  }
+
+  async updateShipment(id: string, data: any) {
+    return this.request(`/admin/shipments/${id}`, { method: 'PUT', body: data });
+  }
+
+  async getCourierPartners() {
+    return this.request('/admin/courier-partners');
+  }
+
+  // Invoice PDF
+  async getInvoicePDF(invoiceNumber: number) {
+    return this.request(`/invoices/pdf/${invoiceNumber}`);
+  }
+
+  async getShippingLabelPDF(shipmentId: string) {
+    return this.request(`/invoices/shipping-label/${shipmentId}`);
+  }
+
   // Inventory
   async lockInventory(items: any[]) {
     return this.request('/inventory/lock', { method: 'POST', body: items });

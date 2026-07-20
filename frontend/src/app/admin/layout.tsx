@@ -9,6 +9,7 @@ import {
   LayoutDashboard, Package, LayoutGrid, ShoppingBag, Image,
   ShoppingCart, Users, Tag, Star, FileText, Settings, BarChart3,
   Mail, HelpCircle, Shield, Database, Menu, X, ChevronDown,
+  Truck,
 } from 'lucide-react';
 
 const FULL_ACCESS_ROLES = ['ADMIN', 'SUPER_ADMIN', 'MANAGER'];
@@ -27,6 +28,9 @@ const sidebarLinks: SidebarLink[] = [
   { label: 'Brands', href: '/admin/brands', icon: <ShoppingBag size={18} /> },
   { label: 'Banners', href: '/admin/banners', icon: <Image size={18} />, permission: 'banners.manage' },
   { label: 'Orders', href: '/admin/orders', icon: <ShoppingCart size={18} />, permission: 'orders.manage' },
+  { label: 'Returns', href: '/admin/returns', icon: <Package size={18} />, permission: 'orders.manage' },
+  { label: 'Refunds', href: '/admin/refunds', icon: <Tag size={18} />, permission: 'orders.manage' },
+  { label: 'Shipments', href: '/admin/shipments', icon: <Truck size={18} />, permission: 'orders.manage' },
   { label: 'Customers', href: '/admin/customers', icon: <Users size={18} />, permission: 'customers.view' },
   { label: 'Coupons', href: '/admin/coupons', icon: <Tag size={18} />, permission: 'coupons.manage' },
   { label: 'Reviews', href: '/admin/reviews', icon: <Star size={18} />, permission: 'reviews.manage' },

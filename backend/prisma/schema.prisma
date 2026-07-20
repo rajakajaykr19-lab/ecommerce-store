@@ -329,11 +329,16 @@ model OrderStatusHistory {
   status    String
   note      String?
   changedBy String?
+  changedByUserId String?
+  ipAddress String?
+  userAgent String?
   createdAt DateTime @default(now())
 
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Coupon {
@@ -549,9 +554,15 @@ model Order {
   razorpayOrderId String?
   upiTxId         String?
   notes           String?
+  customerNotes   String?
+  adminNotes      String?
+  courierPartner  String?
   trackingNumber  String?
   estimatedDelivery DateTime?
   deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  cancelledBy     String?
+  cancellationReason String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -561,12 +572,111 @@ model Order {
   items           OrderItem[]
   statusHistory   OrderStatusHistory[]
   invoice         Invoice?
+  returns         Return[]
+  refunds         Refund[]
+  shipment        Shipment?
 
   @@index([orderNumber])
   @@index([userId])
   @@index([status])
   @@index([paymentStatus])
+  @@index([paymentMethod])
+  @@index([courierPartner])
   @@index([createdAt])
+}
+
+model Return {
+  id              String   @id @default(uuid())
+  orderId         String
+  returnNumber    String   @unique
+  status          String   @default("REQUESTED")
+  reason          String
+  description     String?
+  adminNotes      String?
+  refundAmount    Float?
+  pickupAddress   String?
+  pickupDate      DateTime?
+  deliveredBackAt DateTime?
+  inspectedAt     DateTime?
+  inspectedBy     String?
+  inspectionNotes String?
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items           ReturnItem[]
+
+  @@index([orderId])
+  @@index([returnNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ReturnItem {
+  id            String  @id @default(uuid())
+  returnId      String
+  orderItemId   String
+  productId     String
+  quantity      Int
+  reason        String?
+  condition     String?
+
+  returnOrder   Return  @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([orderItemId])
+}
+
+model Refund {
+  id                String   @id @default(uuid())
+  orderId           String
+  refundNumber      String   @unique
+  amount            Float
+  status            String   @default("PENDING")
+  method            String
+  reason            String?
+  transactionId     String?
+  processedAt       DateTime?
+  completedAt       DateTime?
+  failedAt          DateTime?
+  failureReason     String?
+  adminNotes        String?
+  processedBy       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([refundNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Shipment {
+  id                String   @id @default(uuid())
+  orderId           String   @unique
+  courierPartner    String
+  trackingNumber    String
+  trackingUrl       String?
+  pickupDate        DateTime?
+  shipDate          DateTime?
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  weight            Float?
+  dimensions        String?
+  status            String   @default("LABEL_CREATED")
+  currentLocation   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([trackingNumber])
+  @@index([courierPartner])
 }
 
 model AttributeGroup {
